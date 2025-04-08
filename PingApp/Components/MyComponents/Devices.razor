@@ -1,5 +1,155 @@
-﻿<h3>Devices</h3>
+﻿@page "/devices"
+@using PingApp.Models
+@using PingApp.Repositories
+@inject IDeviceRepository DeviceRepository
+@inject ICategoryRepository CategoryRepository
+@inject IDeviceGroupRepository DeviceGroupRepository
+@inject IJSRuntime JSRuntime
+
+<h3>Urządzenia</h3>
+
+@if (DeviceList == null)
+{
+    <p>Ładowanie urządzeń...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Nazwa</th>
+                <th>Adres IP</th>
+                <th>Kategoria</th>
+                <th>Grupa</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var device in DeviceList)
+            {
+                <tr>
+                    <td>@device.Id</td>
+                    <td>@device.Name</td>
+                    <td>@device.IPAddress</td>
+                    <td>@device.Category?.CategoryName</td>
+                    <td>@device.Group?.GroupName</td>
+                    <td>
+                        <button @onclick="() => EditDevice(device)">Edytuj</button>
+                        <button @onclick="() => DeleteDevice(device.Id)">Usuń</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button @onclick="ShowAddDeviceForm">Dodaj urządzenie</button>
+}
+
+<!-- Formularz do dodawania i edytowania urządzenia -->
+@if (IsAddEditFormVisible)
+{
+    <div>
+        <h3>@(IsEditing ? "Edycja urządzenia" : "Dodaj urządzenie")</h3>
+        <label for="deviceName">Nazwa urządzenia:</label>
+        <input type="text" id="deviceName" @bind="DeviceForm.Name" />
+
+        <label for="deviceIP">Adres IP:</label>
+        <input type="text" id="deviceIP" @bind="DeviceForm.IPAddress" />
+
+        <label for="categorySelect">Kategoria:</label>
+        <select id="categorySelect" @bind="DeviceForm.CategoryId">
+            <option value="">Wybierz kategorię</option>
+            @foreach (var category in Categories)
+            {
+                <option value="@category.Id">@category.CategoryName</option>
+            }
+        </select>
+
+        <label for="groupSelect">Grupa:</label>
+        <select id="groupSelect" @bind="DeviceForm.GroupId">
+            <option value="">Wybierz grupę</option>
+            @foreach (var group in DeviceGroups)
+            {
+                <option value="@group.Id">@group.GroupName</option>
+            }
+        </select>
+
+        <button @onclick="SaveDevice">Zapisz</button>
+        <button @onclick="CancelAddEdit">Anuluj</button>
+    </div>
+}
 
 @code {
+    private IEnumerable<Device> DeviceList;
+    private Device DeviceForm = new Device();
+    private bool IsAddEditFormVisible = false;
+    private bool IsEditing = false;
+    private IEnumerable<Category> Categories;
+    private IEnumerable<DeviceGroup> DeviceGroups;
 
+    // Załadowanie urządzeń przy inicjalizacji
+    protected override async Task OnInitializedAsync()
+    {
+        DeviceList = await DeviceRepository.GetAllDevicesAsync() ?? new List<Device>();
+        Categories = await CategoryRepository.GetAllCategoriesAsync();
+        DeviceGroups = await DeviceGroupRepository.GetAllDeviceGroupsAsync();
+    }
+
+    // Wyświetlenie formularza dodawania urządzenia
+    private void ShowAddDeviceForm()
+    {
+        IsEditing = false;
+        DeviceForm = new Device(); // Reset formularza
+        IsAddEditFormVisible = true;
+    }
+
+    // Wyświetlenie formularza edycji urządzenia
+    private void EditDevice(Device device)
+    {
+        IsEditing = true;
+        DeviceForm = new Device
+            {
+                Id = device.Id,
+                Name = device.Name,
+                IPAddress = device.IPAddress,
+                CategoryId = device.CategoryId,
+                GroupId = device.GroupId
+            };
+        IsAddEditFormVisible = true;
+    }
+
+    // Zapisanie urządzenia (dodanie lub edytowanie)
+    private async Task SaveDevice()
+    {
+        if (IsEditing)
+        {
+            await DeviceRepository.UpdateDeviceAsync(DeviceForm);
+        }
+        else
+        {
+            await DeviceRepository.AddDeviceAsync(DeviceForm);
+        }
+
+        // Po zapisaniu, zamknięcie formularza i odświeżenie listy
+        IsAddEditFormVisible = false;
+        DeviceList = await DeviceRepository.GetAllDevicesAsync();
+    }
+
+    // Anulowanie edycji lub dodawania
+    private void CancelAddEdit()
+    {
+        IsAddEditFormVisible = false;
+    }
+
+    // Usuwanie urządzenia
+    private async Task DeleteDevice(int id)
+    {
+        var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunąć to urządzenie?");
+        if (confirmDelete)
+        {
+            await DeviceRepository.DeleteDeviceAsync(id);
+            DeviceList = await DeviceRepository.GetAllDevicesAsync(); // Odświeżenie listy
+        }
+    }
 }

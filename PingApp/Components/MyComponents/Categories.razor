@@ -2,8 +2,11 @@
 @using PingApp.Models
 @using PingApp.Repositories
 @inject ICategoryRepository CategoryRepository
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 
 <h3>Kategorie</h3>
+
 @if (CategoryList == null)
 {
     <p>Ładowanie kategorii...</p>
@@ -25,7 +28,7 @@ else
                     <td>@category.Id</td>
                     <td>@category.CategoryName</td>
                     <td>
-                        <button @onclick="() => EditCategory(category.Id)">Edytuj</button>
+                        <button @onclick="() => EditCategory(category)">Edytuj</button>
                         <button @onclick="() => DeleteCategory(category.Id)">Usuń</button>
                     </td>
                 </tr>
@@ -33,32 +36,87 @@ else
         </tbody>
     </table>
 
-    <button @onclick="AddCategory">Dodaj kategorię</button>
+    <button @onclick="() => ShowAddCategoryForm()">Dodaj kategorię</button>
+
+    <!-- Formularz do dodawania/edycji kategorii -->
+    @if (IsAddEditFormVisible)
+    {
+        <div class="modal">
+            <div class="modal-content">
+                <h3>@(IsEditing ? "Edycja kategorii" : "Dodaj kategorię")</h3>
+                <label for="categoryName">Nazwa kategorii:</label>
+                <input type="text" id="categoryName" @bind="CategoryForm.CategoryName" />
+                <button @onclick="SaveCategory">Zapisz</button>
+                <button @onclick="CancelAddEdit">Anuluj</button>
+            </div>
+        </div>
+    }
 }
 
 
 @code {
     private IEnumerable<Category> CategoryList;
+    private Category CategoryForm = new Category();
+    private bool IsAddEditFormVisible = false;
+    private bool IsEditing = false;
 
     protected override async Task OnInitializedAsync()
     {
-        // Ładujemy listę kategorii do CategoryList
+        // Ładujemy listę kategorii
         CategoryList = await CategoryRepository.GetAllCategoriesAsync() ?? new List<Category>();
-
     }
 
-    private void EditCategory(int id)
+    // Logika do wyświetlania formularza dodawania kategorii
+    private void ShowAddCategoryForm()
     {
-        // Logika edycji
+        IsEditing = false;
+        CategoryForm = new Category(); // Reset formularza
+        IsAddEditFormVisible = true;
     }
 
-    private void DeleteCategory(int id)
+    // Logika do wyświetlania formularza edycji kategorii
+    private void EditCategory(Category category)
     {
-        // Logika usuwania
+        IsEditing = true;
+        CategoryForm = new Category
+            {
+                Id = category.Id,
+                CategoryName = category.CategoryName
+            };
+        IsAddEditFormVisible = true;
     }
 
-    private void AddCategory()
+    // Zapisz kategorię (dodaj lub edytuj)
+    private async Task SaveCategory()
     {
-        // Logika dodawania
+        if (IsEditing)
+        {
+            await CategoryRepository.UpdateCategoryAsync(CategoryForm);
+        }
+        else
+        {
+            await CategoryRepository.AddCategoryAsync(CategoryForm);
+        }
+
+        // Po zapisaniu, zamykamy formularz i odświeżamy listę
+        IsAddEditFormVisible = false;
+        CategoryList = await CategoryRepository.GetAllCategoriesAsync();
+    }
+
+    // Anuluj edycję/dodawanie
+    private void CancelAddEdit()
+    {
+        IsAddEditFormVisible = false;
+    }
+
+    // Logika usuwania kategorii
+    private async Task DeleteCategory(int id)
+    {
+        var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", new object[] { "Czy na pewno chcesz usunąć tę kategorię?" });
+        if (confirmDelete)
+        {
+            await CategoryRepository.DeleteCategoryAsync(id);
+            CategoryList = await CategoryRepository.GetAllCategoriesAsync(); // Odświeżenie listy
+        }
     }
 }

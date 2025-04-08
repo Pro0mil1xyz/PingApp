@@ -1,5 +1,119 @@
-﻿<h3>DeviceGroups</h3>
+﻿@page "/devicegroups"
+@using PingApp.Models
+@using PingApp.Repositories
+@inject IDeviceGroupRepository DeviceGroupRepository
+@inject IJSRuntime JSRuntime
+
+<h3>Grupy urządzeń</h3>
+
+@if (DeviceGroupList == null)
+{
+    <p>Ładowanie grup urządzeń...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Nazwa grupy</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var group in DeviceGroupList)
+            {
+                <tr>
+                    <td>@group.Id</td>
+                    <td>@group.GroupName</td>
+                    <td>
+                        <button @onclick="() => EditDeviceGroup(group)">Edytuj</button>
+                        <button @onclick="() => DeleteDeviceGroup(group.Id)">Usuń</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button @onclick="ShowAddDeviceGroupForm">Dodaj grupę</button>
+}
+
+<!-- Formularz do dodawania i edytowania grupy -->
+@if (IsAddEditFormVisible)
+{
+    <div>
+        <h3>@(IsEditing ? "Edycja grupy" : "Dodaj grupę")</h3>
+        <label for="groupName">Nazwa grupy:</label>
+        <input type="text" id="groupName" @bind="DeviceGroupForm.GroupName" />
+        <button @onclick="SaveDeviceGroup">Zapisz</button>
+        <button @onclick="CancelAddEdit">Anuluj</button>
+    </div>
+}
+
 
 @code {
+    private IEnumerable<DeviceGroup> DeviceGroupList;
+    private DeviceGroup DeviceGroupForm = new DeviceGroup();
+    private bool IsAddEditFormVisible = false;
+    private bool IsEditing = false;
 
+    // Załadowanie grup urządzeń przy inicjalizacji
+    protected override async Task OnInitializedAsync()
+    {
+        DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync() ?? new List<DeviceGroup>();
+    }
+
+    // Wyświetlenie formularza dodawania grupy
+    private void ShowAddDeviceGroupForm()
+    {
+        IsEditing = false;
+        DeviceGroupForm = new DeviceGroup(); // Reset formularza
+        IsAddEditFormVisible = true;
+    }
+
+    // Wyświetlenie formularza edycji grupy
+    private void EditDeviceGroup(DeviceGroup group)
+    {
+        IsEditing = true;
+        DeviceGroupForm = new DeviceGroup
+            {
+                Id = group.Id,
+                GroupName = group.GroupName
+            };
+        IsAddEditFormVisible = true;
+    }
+
+    // Zapisanie grupy (dodanie lub edytowanie)
+    private async Task SaveDeviceGroup()
+    {
+        if (IsEditing)
+        {
+            await DeviceGroupRepository.UpdateDeviceGroupAsync(DeviceGroupForm);
+        }
+        else
+        {
+            await DeviceGroupRepository.AddDeviceGroupAsync(DeviceGroupForm);
+        }
+
+        // Po zapisaniu, zamknięcie formularza i odświeżenie listy
+        IsAddEditFormVisible = false;
+        DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync();
+    }
+
+    // Anulowanie edycji lub dodawania
+    private void CancelAddEdit()
+    {
+        IsAddEditFormVisible = false;
+    }
+
+    // Usuwanie grupy
+    private async Task DeleteDeviceGroup(int id)
+    {
+        var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunąć tę grupę?");
+        if (confirmDelete)
+        {
+            await DeviceGroupRepository.DeleteDeviceGroupAsync(id);
+            DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync(); // Odświeżenie listy
+        }
+    }
 }
