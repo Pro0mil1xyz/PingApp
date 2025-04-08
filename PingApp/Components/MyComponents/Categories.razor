@@ -1,0 +1,64 @@
+﻿@page "/categories"
+@using PingApp.Models
+@using PingApp.Repositories
+@inject ICategoryRepository CategoryRepository
+
+<h3>Kategorie</h3>
+@if (CategoryList == null)
+{
+    <p>Ładowanie kategorii...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Nazwa</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var category in CategoryList)
+            {
+                <tr>
+                    <td>@category.Id</td>
+                    <td>@category.CategoryName</td>
+                    <td>
+                        <button @onclick="() => EditCategory(category.Id)">Edytuj</button>
+                        <button @onclick="() => DeleteCategory(category.Id)">Usuń</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button @onclick="AddCategory">Dodaj kategorię</button>
+}
+
+
+@code {
+    private IEnumerable<Category> CategoryList;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Ładujemy listę kategorii do CategoryList
+        CategoryList = await CategoryRepository.GetAllCategoriesAsync() ?? new List<Category>();
+
+    }
+
+    private void EditCategory(int id)
+    {
+        // Logika edycji
+    }
+
+    private void DeleteCategory(int id)
+    {
+        // Logika usuwania
+    }
+
+    private void AddCategory()
+    {
+        // Logika dodawania
+    }
+}
