@@ -9,5 +9,9 @@ namespace PingApp.Repositories
         Task AddDeviceAsync(Device device);
         Task UpdateDeviceAsync(Device device);
         Task DeleteDeviceAsync(int id);
+
+        Task<IEnumerable<Device>> GetDevicesByCategoryIdAsync(int categoryId);
+        Task<IEnumerable<Device>> GetDevicesByGroupIdAsync(int groupId);
+
     }
 }

@@ -1,0 +1,75 @@
+﻿@page "/MyComponents/pinghistorylist"
+@using PingApp.Models
+@using PingApp.Repositories
+@inject IPingRepository PingRepository
+
+<h3>Historia Pingów</h3>
+
+@if (pingHistoryItems == null)
+{
+    <p>Ładowanie historii pingów...</p>
+}
+else if (!pingHistoryItems.Any())
+{
+    <p>Brak zapisanych wyników pingowania.</p>
+}
+else
+{
+    <div>
+        <button class="btn btn-danger" @onclick="DeleteAllPingHistory">Usuń całą historię</button>
+    </div>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Adres IP</th>
+                <th>Nazwa Urządzenia</th>
+                <th>Data</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ping in pingHistoryItems)
+            {
+                <tr>
+                    <td>@ping.Id</td>
+                    <td>@ping.IPAddress</td>
+                    <td>@(ping.Device != null ? ping.Device.Name : "Nieznane urządzenie")</td>
+                    <td>@ping.Date.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@ping.Status</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IEnumerable<PingHistory> pingHistoryItems = new List<PingHistory>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var historyList = await PingRepository.GetAllPingHistoriesAsync();
+            pingHistoryItems = historyList ?? new List<PingHistory>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Błąd podczas pobierania historii pingów: {ex.Message}");
+            pingHistoryItems = new List<PingHistory>();
+        }
+    }
+
+    private async Task DeleteAllPingHistory()
+    {
+        try
+        {
+            await PingRepository.DeleteAllPingHistoriesAsync(); // Wywołanie metody usuwania
+            pingHistoryItems = new List<PingHistory>(); // Odświeżenie widoku
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Błąd podczas usuwania historii pingów: {ex.Message}");
+        }
+    }
+}

@@ -7,13 +7,15 @@
 
 <h3>Kategorie</h3>
 
+<button @onclick="() => ShowAddCategoryForm()">Dodaj kategorię</button>
+
 @if (CategoryList == null)
 {
     <p>Ładowanie kategorii...</p>
 }
 else
 {
-    <table class="table">
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Id</th>
@@ -36,7 +38,7 @@ else
         </tbody>
     </table>
 
-    <button @onclick="() => ShowAddCategoryForm()">Dodaj kategorię</button>
+    
 
     <!-- Formularz do dodawania/edycji kategorii -->
     @if (IsAddEditFormVisible)

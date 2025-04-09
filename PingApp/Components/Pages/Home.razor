@@ -6,97 +6,204 @@
 @inject ICategoryRepository CategoryRepository
 @inject IPingRepository PingRepository
 
-<h3>Strona główna - Pingowanie urządzeń</h3>
 
-<h4>Lista urządzeń</h4>
-@if (DeviceList == null)
-{
-    <p>Ładowanie urządzeń...</p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Nazwa urządzenia</th>
-                <th>Adres IP</th>
-                <th>Akcje</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var device in DeviceList)
-            {
-                <tr>
-                    <td>@device.Id</td>
-                    <td>@device.Name</td>
-                    <td>@device.IPAddress</td>
-                    <td>
-                        <button @onclick="() => PingDevice(device.IPAddress, device.Id)">Pinguj</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
 
-<h4>Grupy urządzeń</h4>
-@if (DeviceGroupList == null)
-{
-    <p>Ładowanie grup urządzeń...</p>
-}
-else
-{
-    <ul>
-        @foreach (var group in DeviceGroupList)
+<div class="IP">
+
+    <h1>IP PINGER</h1>
+
+    <div class="IPmanualnie">
+
+        <!-- Pingowanie pojedynczego adresu IP -->
+        IP: <input type="text" placeholder="Podaj adres IP" @bind="SingleIpAddress" />
+        <button @onclick="PingSingleIp">Pinguj</button> <br /> <br />
+
+        <!-- Pingowanie zakresu IP -->
+        Zakres IP <br />
+        <input type="text" placeholder="Początek zakresu" @bind="StartIpRange" />
+        <input type="text" placeholder="Koniec zakresu" @bind="EndIpRange" />
+        <button @onclick="PingIpRange">Pinguj zakres</button>
+
+    </div>
+
+    <div class="IPwybory">
+
+        <!-- Pingowanie wszystkich urządzeń z grupy -->
+        Wybierz grupe:
+        @if (DeviceGroupList == null || !DeviceGroupList.Any())
         {
-            <li>@group.GroupName</li>
+            <p>Ładowanie grup urządzeń...</p>
         }
-    </ul>
-}
-
-<h4>Kategorie urządzeń</h4>
-@if (CategoryList == null)
-{
-    <p>Ładowanie kategorii...</p>
-}
-else
-{
-    <ul>
-        @foreach (var category in CategoryList)
+        else
         {
-            <li>@category.CategoryName</li>
+            <select @bind="SelectedGroupId">
+                @foreach (var group in DeviceGroupList)
+                {
+                    <option value="@group.Id">@group.GroupName</option>
+                }
+            </select>
+            <button @onclick="PingGroup">Pinguj grupę</button>
         }
-    </ul>
-}
+        <br /><br />
 
-<h4>Wyniki pingowania</h4>
-@if (!string.IsNullOrEmpty(PingResult))
-{
-    <p>Ostatni wynik: @PingResult</p>
-}
+        <!-- Pingowanie wszystkich urządzeń z kategorii -->
+        Wybierz kategorie:
+        @if (CategoryList == null || !CategoryList.Any())
+        {
+            <p>Ładowanie kategorii...</p>
+        }
+        else
+        {
+            <select @bind="SelectedCategoryId">
+                @foreach (var category in CategoryList)
+                {
+                    <option value="@category.Id">@category.CategoryName</option>
+                }
+            </select>
+            <button @onclick="PingCategory">Pinguj kategorię</button>
+        }
+
+        <br /><br />
+
+        <!-- Pingowanie konkretnego urządzenia -->
+        Urządzenie:
+        @if (DeviceList == null || !DeviceList.Any())
+        {
+            <p>Ładowanie urządzeń...</p>
+        }
+        else
+        {
+            <select @bind="SelectedDeviceId">
+                @foreach (var device in DeviceList)
+                {
+                    <option value="@device.Id">@device.Name (@device.IPAddress)</option>
+                }
+            </select>
+            <button @onclick="PingSelectedDevice">Pinguj wybrane urządzenie</button>
+        }
+
+    </div>
+
+</div>
+
+<div class="wynikpingowanie">
+
+    <h2>Wyniki pingowania</h2>
+    <div class="ping-results">
+        @foreach (var result in PingResults)
+        {
+            <p>@result</p>
+        }
+    </div>
+
+</div>
 
 @code {
-    private IEnumerable<Device> DeviceList;
-    private IEnumerable<DeviceGroup> DeviceGroupList;
-    private IEnumerable<Category> CategoryList;
+    private string SingleIpAddress = string.Empty;
+    private string StartIpRange = string.Empty;
+    private string EndIpRange = string.Empty;
+    private int SelectedGroupId = 0;
+    private int SelectedCategoryId = 0;
+    private int SelectedDeviceId = 0;
 
-    private string PingResult;
+    private IEnumerable<DeviceGroup> DeviceGroupList = new List<DeviceGroup>();
+    private IEnumerable<Category> CategoryList = new List<Category>();
+    private IEnumerable<Device> DeviceList = new List<Device>();
+    private List<string> PingResults = new List<string>();
 
     protected override async Task OnInitializedAsync()
     {
-        // Pobierz dane z repozytoriów
-        DeviceList = await DeviceRepository.GetAllDevicesAsync() ?? new List<Device>();
+        // Pobranie grup urządzeń, kategorii i urządzeń
         DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync() ?? new List<DeviceGroup>();
         CategoryList = await CategoryRepository.GetAllCategoriesAsync() ?? new List<Category>();
+        DeviceList = await DeviceRepository.GetAllDevicesAsync() ?? new List<Device>();
     }
 
-    private async Task PingDevice(string ipAddress, int deviceId)
+    private async Task PingSingleIp()
     {
-        // Wykonanie operacji ping
-        PingResult = await PingRepository.PingDeviceAsync(ipAddress);
+        if (string.IsNullOrWhiteSpace(SingleIpAddress))
+        {
+            PingResults.Add("Adres IP nie może być pusty.");
+            return;
+        }
 
-        // Zapis wyniku pingowania w bazie danych
-        await PingRepository.SavePingResultAsync(ipAddress, deviceId);
+        var result = await PingRepository.PingDeviceAsync(SingleIpAddress);
+        PingResults.Add($"Ping do {SingleIpAddress}: {result}");
+        PingRepository.SavePingResultAsync(SingleIpAddress, 0); // 0 oznacza brak powiązanego urządzenia
+    }
+
+    private async Task PingIpRange()
+    {
+        if (string.IsNullOrWhiteSpace(StartIpRange) || string.IsNullOrWhiteSpace(EndIpRange))
+        {
+            PingResults.Add("Zakres adresów IP nie może być pusty.");
+            return;
+        }
+
+        try
+        {
+            var startParts = StartIpRange.Split('.').Select(int.Parse).ToArray();
+            var endParts = EndIpRange.Split('.').Select(int.Parse).ToArray();
+
+            for (int i = startParts[3]; i <= endParts[3]; i++)
+            {
+                var ip = $"{startParts[0]}.{startParts[1]}.{startParts[2]}.{i}";
+                var result = await PingRepository.PingDeviceAsync(ip);
+                PingResults.Add($"Ping do {ip}: {result}");
+                await PingRepository.SavePingResultAsync(ip, 0); // 0 oznacza brak powiązanego urządzenia
+            }
+        }
+        catch
+        {
+            PingResults.Add("Niepoprawny zakres adresów IP.");
+        }
+    }
+
+    private async Task PingGroup()
+    {
+        var devices = await DeviceRepository.GetDevicesByGroupIdAsync(SelectedGroupId);
+        if (!devices.Any())
+        {
+            PingResults.Add("Brak urządzeń w wybranej grupie.");
+            return;
+        }
+
+        foreach (var device in devices)
+        {
+            var result = await PingRepository.PingDeviceAsync(device.IPAddress);
+            PingResults.Add($"Ping do {device.Name} ({device.IPAddress}): {result}");
+            await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
+        }
+    }
+
+    private async Task PingCategory()
+    {
+        var devices = await DeviceRepository.GetDevicesByCategoryIdAsync(SelectedCategoryId);
+        if (!devices.Any())
+        {
+            PingResults.Add("Brak urządzeń w wybranej kategorii.");
+            return;
+        }
+
+        foreach (var device in devices)
+        {
+            var result = await PingRepository.PingDeviceAsync(device.IPAddress);
+            PingResults.Add($"Ping do {device.Name} ({device.IPAddress}): {result}");
+            await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
+        }
+    }
+
+    private async Task PingSelectedDevice()
+    {
+        var device = DeviceList.FirstOrDefault(d => d.Id == SelectedDeviceId);
+        if (device == null)
+        {
+            PingResults.Add("Nie znaleziono wybranego urządzenia.");
+            return;
+        }
+
+        var result = await PingRepository.PingDeviceAsync(device.IPAddress);
+        PingResults.Add($"Ping do {device.Name} ({device.IPAddress}): {result}");
+        await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
     }
 }

@@ -8,13 +8,15 @@
 
 <h3>Urządzenia</h3>
 
+<button @onclick="ShowAddDeviceForm">Dodaj urządzenie</button>
+
 @if (DeviceList == null)
 {
     <p>Ładowanie urządzeń...</p>
 }
 else
 {
-    <table class="table">
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Id</th>
@@ -43,7 +45,7 @@ else
         </tbody>
     </table>
 
-    <button @onclick="ShowAddDeviceForm">Dodaj urządzenie</button>
+    
 }
 
 <!-- Formularz do dodawania i edytowania urządzenia -->

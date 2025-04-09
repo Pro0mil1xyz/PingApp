@@ -18,11 +18,11 @@
         {
             using (var dbContext = _context.CreateDbContext())
             {
-                    return await dbContext.Devices
-                        .Include(d => d.Category)
-                        .Include(d => d.Group)
-                        .OrderBy(d => d.Name) // Opcjonalne sortowanie
-                        .ToListAsync();
+                return await dbContext.Devices
+                    .Include(d => d.Category)
+                    .Include(d => d.Group)
+                    .OrderBy(d => d.Name) // Opcjonalne sortowanie
+                    .ToListAsync();
             }
         }
 
@@ -32,10 +32,10 @@
             using (var dbContext = _context.CreateDbContext())
             {
                 return await dbContext.Devices
-                .Include(d => d.Category)
-                .Include(d => d.Group)
-                .Where(d => d.Id == id)
-                .FirstOrDefaultAsync();
+                    .Include(d => d.Category)
+                    .Include(d => d.Group)
+                    .Where(d => d.Id == id)
+                    .FirstOrDefaultAsync();
             }
         }
 
@@ -55,8 +55,8 @@
             using (var dbContext = _context.CreateDbContext())
             {
                 var existingDevice = await dbContext.Devices
-                .Where(d => d.Id == device.Id)
-                .FirstOrDefaultAsync();
+                    .Where(d => d.Id == device.Id)
+                    .FirstOrDefaultAsync();
 
                 if (existingDevice != null)
                 {
@@ -72,14 +72,40 @@
             using (var dbContext = _context.CreateDbContext())
             {
                 var device = await dbContext.Devices
-                .Where(d => d.Id == id)
-                .FirstOrDefaultAsync();
+                    .Where(d => d.Id == id)
+                    .FirstOrDefaultAsync();
 
                 if (device != null)
                 {
                     dbContext.Devices.Remove(device);
                     await dbContext.SaveChangesAsync();
                 }
+            }
+        }
+
+        // Pobierz wszystkie urządzenia należące do danej grupy
+        public async Task<IEnumerable<Device>> GetDevicesByGroupIdAsync(int groupId)
+        {
+            using (var dbContext = _context.CreateDbContext())
+            {
+                return await dbContext.Devices
+                    .Where(d => d.GroupId == groupId)
+                    .Include(d => d.Category) // Opcjonalne
+                    .Include(d => d.Group) // Opcjonalne
+                    .ToListAsync();
+            }
+        }
+
+        // Pobierz wszystkie urządzenia należące do danej kategorii
+        public async Task<IEnumerable<Device>> GetDevicesByCategoryIdAsync(int categoryId)
+        {
+            using (var dbContext = _context.CreateDbContext())
+            {
+                return await dbContext.Devices
+                    .Where(d => d.CategoryId == categoryId)
+                    .Include(d => d.Category) // Opcjonalne
+                    .Include(d => d.Group) // Opcjonalne
+                    .ToListAsync();
             }
         }
     }

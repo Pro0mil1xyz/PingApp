@@ -6,13 +6,15 @@
 
 <h3>Grupy urządzeń</h3>
 
+<button @onclick="ShowAddDeviceGroupForm">Dodaj grupę</button>
+
 @if (DeviceGroupList == null)
 {
     <p>Ładowanie grup urządzeń...</p>
 }
 else
 {
-    <table class="table">
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Id</th>
@@ -35,7 +37,7 @@ else
         </tbody>
     </table>
 
-    <button @onclick="ShowAddDeviceGroupForm">Dodaj grupę</button>
+    
 }
 
 <!-- Formularz do dodawania i edytowania grupy -->
