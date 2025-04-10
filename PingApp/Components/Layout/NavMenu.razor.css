@@ -32,6 +32,7 @@
     margin-right: 0.75rem;
     top: -1px;
     background-size: cover;
+
 }
 
 .bi-house-door-fill-nav-menu {
@@ -49,6 +50,8 @@
 .nav-item {
     font-size: 0.9rem;
     padding-bottom: 0.5rem;
+    
+
 }
 
     .nav-item:first-of-type {
@@ -69,6 +72,8 @@
         align-items: center;
         line-height: 3rem;
         width: 100%;
+     
+
     }
 
 .nav-item ::deep a.active {
@@ -76,10 +81,11 @@
     color: white;
 }
 
-.nav-item ::deep .nav-link:hover {
-    background-color: rgba(255,255,255,0.1);
-    color: white;
-}
+    .nav-item ::deep .nav-link:hover {
+        background-color: rgba(255,255,255,0.1);
+        color: white;
+        
+    }
 
 .nav-scrollable {
     display: none;

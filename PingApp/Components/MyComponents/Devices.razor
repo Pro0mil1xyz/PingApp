@@ -51,36 +51,41 @@ else
 <!-- Formularz do dodawania i edytowania urządzenia -->
 @if (IsAddEditFormVisible)
 {
-    <div>
-        <h3>@(IsEditing ? "Edycja urządzenia" : "Dodaj urządzenie")</h3>
-        <label for="deviceName">Nazwa urządzenia:</label>
-        <input type="text" id="deviceName" @bind="DeviceForm.Name" />
+    <div class="modal">
+        <div class="modal-content">
+            <h3 style="text-align:center;">@(IsEditing ? "Edycja urządzenia" : "Dodaj urządzenie")</h3>
 
-        <label for="deviceIP">Adres IP:</label>
-        <input type="text" id="deviceIP" @bind="DeviceForm.IPAddress" />
+            <label for="deviceName">Nazwa urządzenia:</label>
+            <input type="text" id="deviceName" @bind="DeviceForm.Name" />
 
-        <label for="categorySelect">Kategoria:</label>
-        <select id="categorySelect" @bind="DeviceForm.CategoryId">
-            <option value="">Wybierz kategorię</option>
-            @foreach (var category in Categories)
-            {
-                <option value="@category.Id">@category.CategoryName</option>
-            }
-        </select>
+            <label for="deviceIP">Adres IP:</label>
+            <input type="text" id="deviceIP" @bind="DeviceForm.IPAddress" />
 
-        <label for="groupSelect">Grupa:</label>
-        <select id="groupSelect" @bind="DeviceForm.GroupId">
-            <option value="">Wybierz grupę</option>
-            @foreach (var group in DeviceGroups)
-            {
-                <option value="@group.Id">@group.GroupName</option>
-            }
-        </select>
+            <label for="categorySelect">Kategoria:</label>
+            <select id="categorySelect" @bind="DeviceForm.CategoryId">
+                <option value="">Wybierz kategorię</option>
+                @foreach (var category in Categories)
+                {
+                    <option value="@category.Id">@category.CategoryName</option>
+                }
+            </select>
 
-        <button @onclick="SaveDevice">Zapisz</button>
-        <button @onclick="CancelAddEdit">Anuluj</button>
+            <label for="groupSelect">Grupa:</label>
+            <select id="groupSelect" @bind="DeviceForm.GroupId">
+                <option value="">Wybierz grupę</option>
+                @foreach (var group in DeviceGroups)
+                {
+                    <option value="@group.Id">@group.GroupName</option>
+                }
+            </select>
+
+            <br />
+            <button @onclick="SaveDevice">Zapisz</button>
+            <button @onclick="CancelAddEdit" style="width: 100%; margin-top: 5px; background: #999;">Anuluj</button>
+        </div>
     </div>
 }
+
 
 @code {
     private IEnumerable<Device> DeviceList;

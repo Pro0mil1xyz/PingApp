@@ -121,6 +121,8 @@
 
     private async Task PingSingleIp()
     {
+        PingResults.Clear();
+
         if (string.IsNullOrWhiteSpace(SingleIpAddress))
         {
             PingResults.Add("Adres IP nie może być pusty.");
@@ -134,6 +136,8 @@
 
     private async Task PingIpRange()
     {
+        PingResults.Clear();
+
         if (string.IsNullOrWhiteSpace(StartIpRange) || string.IsNullOrWhiteSpace(EndIpRange))
         {
             PingResults.Add("Zakres adresów IP nie może być pusty.");
@@ -161,6 +165,8 @@
 
     private async Task PingGroup()
     {
+        PingResults.Clear();
+
         var devices = await DeviceRepository.GetDevicesByGroupIdAsync(SelectedGroupId);
         if (!devices.Any())
         {
@@ -178,6 +184,8 @@
 
     private async Task PingCategory()
     {
+        PingResults.Clear();
+
         var devices = await DeviceRepository.GetDevicesByCategoryIdAsync(SelectedCategoryId);
         if (!devices.Any())
         {
@@ -195,6 +203,9 @@
 
     private async Task PingSelectedDevice()
     {
+
+        PingResults.Clear();
+
         var device = DeviceList.FirstOrDefault(d => d.Id == SelectedDeviceId);
         if (device == null)
         {

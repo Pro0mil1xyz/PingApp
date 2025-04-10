@@ -33,3 +33,25 @@
     justify-content: center;
     text-align: center;
 }
+
+input[type="text"],
+select {
+    width: 40%;
+    padding: 8px 10px;
+    margin: 6px auto;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #fff;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+    input[type="text"]:focus,
+    select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+        outline: none;
+    }
+
+
+

@@ -43,14 +43,21 @@ else
 <!-- Formularz do dodawania i edytowania grupy -->
 @if (IsAddEditFormVisible)
 {
-    <div>
-        <h3>@(IsEditing ? "Edycja grupy" : "Dodaj grupę")</h3>
-        <label for="groupName">Nazwa grupy:</label>
-        <input type="text" id="groupName" @bind="DeviceGroupForm.GroupName" />
-        <button @onclick="SaveDeviceGroup">Zapisz</button>
-        <button @onclick="CancelAddEdit">Anuluj</button>
+    <div class="modal">
+        <div class="modal-content">
+            <h3 style="text-align:center;">@(IsEditing ? "Edycja grupy" : "Dodaj grupę")</h3>
+
+            <label for="groupName">Nazwa grupy:</label>
+            <input type="text" id="groupName" @bind="DeviceGroupForm.GroupName" />
+
+            <br />
+
+            <button @onclick="SaveDeviceGroup">Zapisz</button>
+            <button @onclick="CancelAddEdit" style="width: 100%; margin-top: 5px; background: #999;">Anuluj</button>
+        </div>
     </div>
 }
+
 
 
 @code {
