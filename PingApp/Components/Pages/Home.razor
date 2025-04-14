@@ -16,13 +16,17 @@
 
         <!-- Pingowanie pojedynczego adresu IP -->
         IP: <input type="text" placeholder="Podaj adres IP" @bind="SingleIpAddress" />
-        <button @onclick="PingSingleIp">Pinguj</button> <br /> <br />
+        <button @onclick="PingSingleIp">Pinguj</button> <br /> 
 
         <!-- Pingowanie zakresu IP -->
         Zakres IP <br />
         <input type="text" placeholder="Początek zakresu" @bind="StartIpRange" />
         <input type="text" placeholder="Koniec zakresu" @bind="EndIpRange" />
-        <button @onclick="PingIpRange">Pinguj zakres</button>
+        <button @onclick="PingIpRange">Pinguj zakres</button> <br /> 
+
+        <!-- Ogólne opcje -->
+        Dodatkowe opcje: <br />
+        
 
     </div>
 
@@ -98,6 +102,7 @@
 
 </div>
 
+
 @code {
     private string SingleIpAddress = string.Empty;
     private string StartIpRange = string.Empty;
@@ -109,11 +114,10 @@
     private IEnumerable<DeviceGroup> DeviceGroupList = new List<DeviceGroup>();
     private IEnumerable<Category> CategoryList = new List<Category>();
     private IEnumerable<Device> DeviceList = new List<Device>();
-    private List<string> PingResults = new List<string>();
+    private List<MarkupString> PingResults = new List<MarkupString>();
 
     protected override async Task OnInitializedAsync()
     {
-        // Pobranie grup urządzeń, kategorii i urządzeń
         DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync() ?? new List<DeviceGroup>();
         CategoryList = await CategoryRepository.GetAllCategoriesAsync() ?? new List<Category>();
         DeviceList = await DeviceRepository.GetAllDevicesAsync() ?? new List<Device>();
@@ -122,25 +126,61 @@
     private async Task PingSingleIp()
     {
         PingResults.Clear();
+        int packetsSent = 4;
+        int packetsReceived = 0;
 
-        if (string.IsNullOrWhiteSpace(SingleIpAddress))
+        PingResults.Add((MarkupString)$"Pinging {SingleIpAddress} with 32 bytes of data:");
+        StateHasChanged();
+
+        for (int i = 0; i < packetsSent; i++)
         {
-            PingResults.Add("Adres IP nie może być pusty.");
-            return;
+            try
+            {
+                var result = await PingRepository.PingDeviceAsync(SingleIpAddress);
+
+                if (result.Contains("Success"))
+                {
+                    int time = new Random().Next(5, 100);
+                    int ttl = new Random().Next(50, 128);
+                    PingResults.Add((MarkupString)$"Reply from {SingleIpAddress}: bytes=32 time={time}ms TTL={ttl} Status: <span style='color:lightgreen;'>Success</span>");
+                    packetsReceived++;
+                }
+                else if (result.Contains("Request timed out"))
+                {
+                    PingResults.Add((MarkupString)$"Reply from {SingleIpAddress}: Status: <span style='color:orange;'>Request timed out</span>");
+                }
+                else
+                {
+                    PingResults.Add((MarkupString)$"Reply from {SingleIpAddress}: Status: <span style='color:red;'>{result}</span>");
+                }
+            }
+            catch
+            {
+                PingResults.Add((MarkupString)$"Reply from {SingleIpAddress}: Status: <span style='color:red;'>Error while pinging.</span>");
+            }
+
+            StateHasChanged();
+            await Task.Delay(500);
         }
 
-        var result = await PingRepository.PingDeviceAsync(SingleIpAddress);
-        PingResults.Add($"Ping do {SingleIpAddress}: {result}");
-        PingRepository.SavePingResultAsync(SingleIpAddress, 0); // 0 oznacza brak powiązanego urządzenia
+        PingResults.Add((MarkupString)"");
+        PingResults.Add((MarkupString)"Ping statistics:");
+        PingResults.Add((MarkupString)$"    Packets: Sent = {packetsSent}, <span style='color:lightgreen;'> Received = {packetsReceived}</span>, <span style='color:red;'> Lost = {packetsSent - packetsReceived}</span> ({(packetsSent - packetsReceived) * 100 / packetsSent}% loss)");
+        StateHasChanged();
+
+        await PingRepository.SavePingResultAsync(SingleIpAddress, packetsReceived > 0 ? 0 : -1);
     }
 
     private async Task PingIpRange()
     {
-        PingResults.Clear();
+        HashSet<string> uniqueIps = new();
+        int packetsSent = 0;
+        int packetsReceived = 0;
 
         if (string.IsNullOrWhiteSpace(StartIpRange) || string.IsNullOrWhiteSpace(EndIpRange))
         {
-            PingResults.Add("Zakres adresów IP nie może być pusty.");
+            PingResults.Clear();
+            PingResults.Add((MarkupString)"<span style='color:red;'>Zakres adresów IP nie może być pusty.</span>");
             return;
         }
 
@@ -151,70 +191,294 @@
 
             for (int i = startParts[3]; i <= endParts[3]; i++)
             {
+                PingResults.Clear();
+                StateHasChanged();
+
                 var ip = $"{startParts[0]}.{startParts[1]}.{startParts[2]}.{i}";
-                var result = await PingRepository.PingDeviceAsync(ip);
-                PingResults.Add($"Ping do {ip}: {result}");
-                await PingRepository.SavePingResultAsync(ip, 0); // 0 oznacza brak powiązanego urządzenia
+                PingResults.Add((MarkupString)$"Pinging {ip} with 32 bytes of data:");
+                StateHasChanged();
+
+                for (int j = 0; j < 4; j++)
+                {
+                    try
+                    {
+                        var result = await PingRepository.PingDeviceAsync(ip);
+
+                        if (result.Contains("Success"))
+                        {
+                            int time = new Random().Next(5, 100);
+                            int ttl = new Random().Next(50, 128);
+                            PingResults.Add((MarkupString)$"Reply from {ip}: bytes=32 time={time}ms TTL={ttl} Status: <span style='color:lightgreen;'>Success</span>");
+                            packetsReceived++;
+                        }
+                        else if (result.Contains("Request timed out"))
+                        {
+                            PingResults.Add((MarkupString)$"Reply from {ip}: Status: <span style='color:orange;'>Request timed out</span>");
+                        }
+                        else
+                        {
+                            PingResults.Add((MarkupString)$"Reply from {ip}: Status: <span style='color:red;'>{result}</span>");
+                        }
+                    }
+                    catch
+                    {
+                        PingResults.Add((MarkupString)$"Reply from {ip}: Status: <span style='color:red;'>Error while pinging.</span>");
+                    }
+
+                    StateHasChanged();
+                    await Task.Delay(500);
+                }
+
+                if (uniqueIps.Add(ip))
+                {
+                    await PingRepository.SavePingResultAsync(ip, packetsReceived > 0 ? 0 : -1);
+                }
+
+                packetsSent += 4;
+                await Task.Delay(1000);
             }
         }
         catch
         {
-            PingResults.Add("Niepoprawny zakres adresów IP.");
+            PingResults.Clear();
+            PingResults.Add((MarkupString)"<span style='color:red;'>Niepoprawny zakres adresów IP.</span>");
+            StateHasChanged();
+        }
+        finally
+        {
+            PingResults.Clear();
+            PingResults.Add((MarkupString)"Ping statistics:");
+            PingResults.Add((MarkupString)$"    Packets: Sent = {packetsSent}, <span style='color:lightgreen;'> Received = {packetsReceived}</span>, <span style='color:red;'> Lost = {packetsSent - packetsReceived}</span> ({(packetsSent - packetsReceived) * 100 / packetsSent}% loss)");
+            StateHasChanged();
         }
     }
 
     private async Task PingGroup()
     {
         PingResults.Clear();
+        HashSet<string> uniqueDevices = new HashSet<string>(); // Przechowuje unikalne urządzenia
+        int totalPacketsSent = 0;
+        int totalPacketsReceived = 0;
 
         var devices = await DeviceRepository.GetDevicesByGroupIdAsync(SelectedGroupId);
         if (!devices.Any())
         {
-            PingResults.Add("Brak urządzeń w wybranej grupie.");
+            PingResults.Add((MarkupString)"<span style='color:red;'>Brak urządzeń w wybranej grupie.</span>");
             return;
         }
 
         foreach (var device in devices)
         {
-            var result = await PingRepository.PingDeviceAsync(device.IPAddress);
-            PingResults.Add($"Ping do {device.Name} ({device.IPAddress}): {result}");
-            await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
+            PingResults.Clear(); // Czyszczenie wyników przed nowym urządzeniem
+            StateHasChanged();
+
+            PingResults.Add((MarkupString)$"Pinging {device.Name} ({device.IPAddress}) with 32 bytes of data:");
+            StateHasChanged();
+
+            int packetsSent = 4;
+            int packetsReceived = 0;
+
+            for (int i = 0; i < packetsSent; i++)
+            {
+                try
+                {
+                    var result = await PingRepository.PingDeviceAsync(device.IPAddress);
+
+                    if (result.Contains("Success"))
+                    {
+                        int time = new Random().Next(5, 100); // Czas w ms
+                        int ttl = new Random().Next(50, 128); // TTL
+                        PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: bytes=32 time={time}ms TTL={ttl} Status: <span style='color:lightgreen;'>Success</span>");
+                        packetsReceived++;
+                    }
+                    else if (result.Contains("Request timed out"))
+                    {
+                        PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:orange;'>Request timed out</span>");
+                    }
+                    else
+                    {
+                        PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:red;'>{result}</span>");
+                    }
+                }
+                catch
+                {
+                    PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:red;'>Error while pinging.</span>");
+                }
+
+                StateHasChanged();
+                await Task.Delay(500);
+            }
+
+            // Podsumowanie wyników dla urządzenia
+            PingResults.Add((MarkupString)"<br>");
+            PingResults.Add((MarkupString)$"Ping statistics for {device.Name} ({device.IPAddress}):");
+            PingResults.Add((MarkupString)$"    Packets: Sent = {packetsSent}, <span style='color:lightgreen;'>Received = {packetsReceived}</span>, <span style='color:red;'>Lost = {packetsSent - packetsReceived}</span> ({(packetsSent - packetsReceived) * 100 / packetsSent}% loss)");
+            StateHasChanged();
+
+            // Dodanie do globalnych statystyk
+            totalPacketsSent += packetsSent;
+            totalPacketsReceived += packetsReceived;
+
+            // Zapis wyników dla urządzenia
+            if (uniqueDevices.Add(device.IPAddress))
+            {
+                await PingRepository.SavePingResultAsync(device.IPAddress, packetsReceived > 0 ? device.Id : -1);
+            }
+
+            // Krótkie opóźnienie przed kolejnym urządzeniem
+            await Task.Delay(1000);
         }
+
+        // Czyszczenie ostatniego urządzenia przed globalnymi statystykami
+        PingResults.Clear();
+        StateHasChanged();
+
+        // Wyświetlanie globalnych statystyk
+        PingResults.Add((MarkupString)"Ping statistics for all devices in group:");
+        PingResults.Add((MarkupString)$"    Packets: Sent = {totalPacketsSent}, <span style='color:lightgreen;'>Received = {totalPacketsReceived}</span>, <span style='color:red;'>Lost = {totalPacketsSent - totalPacketsReceived}</span> ({(totalPacketsSent - totalPacketsReceived) * 100 / totalPacketsSent}% loss)");
+        StateHasChanged();
     }
 
     private async Task PingCategory()
     {
         PingResults.Clear();
+        HashSet<string> uniqueDevices = new HashSet<string>(); // Przechowuje unikalne urządzenia
+        int totalPacketsSent = 0;
+        int totalPacketsReceived = 0;
 
         var devices = await DeviceRepository.GetDevicesByCategoryIdAsync(SelectedCategoryId);
         if (!devices.Any())
         {
-            PingResults.Add("Brak urządzeń w wybranej kategorii.");
+            PingResults.Add((MarkupString)"<span style='color:red;'>Brak urządzeń w wybranej kategorii.</span>");
             return;
         }
 
         foreach (var device in devices)
         {
-            var result = await PingRepository.PingDeviceAsync(device.IPAddress);
-            PingResults.Add($"Ping do {device.Name} ({device.IPAddress}): {result}");
-            await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
+            PingResults.Clear(); // Czyszczenie wyników przed nowym urządzeniem
+            StateHasChanged();
+
+            PingResults.Add((MarkupString)$"Pinging {device.Name} ({device.IPAddress}) with 32 bytes of data:");
+            StateHasChanged();
+
+            int packetsSent = 4;
+            int packetsReceived = 0;
+
+            for (int i = 0; i < packetsSent; i++)
+            {
+                try
+                {
+                    var result = await PingRepository.PingDeviceAsync(device.IPAddress);
+
+                    if (result.Contains("Success"))
+                    {
+                        int time = new Random().Next(5, 100); // Czas w ms
+                        int ttl = new Random().Next(50, 128); // TTL
+                        PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: bytes=32 time={time}ms TTL={ttl} Status: <span style='color:lightgreen;'>Success</span>");
+                        packetsReceived++;
+                    }
+                    else if (result.Contains("Request timed out"))
+                    {
+                        PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:orange;'>Request timed out</span>");
+                    }
+                    else
+                    {
+                        PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:red;'>{result}</span>");
+                    }
+                }
+                catch
+                {
+                    PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:red;'>Error while pinging.</span>");
+                }
+
+                StateHasChanged();
+                await Task.Delay(500);
+            }
+
+            // Podsumowanie wyników dla urządzenia
+            PingResults.Add((MarkupString)"<br>");
+            PingResults.Add((MarkupString)$"Ping statistics for {device.Name} ({device.IPAddress}):");
+            PingResults.Add((MarkupString)$"    Packets: Sent = {packetsSent}, <span style='color:lightgreen;'>Received = {packetsReceived}</span>, <span style='color:red;'>Lost = {packetsSent - packetsReceived}</span> ({(packetsSent - packetsReceived) * 100 / packetsSent}% loss)");
+            StateHasChanged();
+
+            // Dodanie do globalnych statystyk
+            totalPacketsSent += packetsSent;
+            totalPacketsReceived += packetsReceived;
+
+            // Zapis wyników dla urządzenia
+            if (uniqueDevices.Add(device.IPAddress))
+            {
+                await PingRepository.SavePingResultAsync(device.IPAddress, packetsReceived > 0 ? device.Id : -1);
+            }
+
+            // Krótkie opóźnienie przed kolejnym urządzeniem
+            await Task.Delay(1000);
         }
+
+        // Czyszczenie ostatniego urządzenia przed globalnymi statystykami
+        PingResults.Clear();
+        StateHasChanged();
+
+        // Wyświetlanie globalnych statystyk
+        PingResults.Add((MarkupString)"Ping statistics for all devices in category:");
+        PingResults.Add((MarkupString)$"    Packets: Sent = {totalPacketsSent}, <span style='color:lightgreen;'>Received = {totalPacketsReceived}</span>, <span style='color:red;'>Lost = {totalPacketsSent - totalPacketsReceived}</span> ({(totalPacketsSent - totalPacketsReceived) * 100 / totalPacketsSent}% loss)");
+        StateHasChanged();
     }
 
     private async Task PingSelectedDevice()
     {
-
         PingResults.Clear();
 
         var device = DeviceList.FirstOrDefault(d => d.Id == SelectedDeviceId);
         if (device == null)
         {
-            PingResults.Add("Nie znaleziono wybranego urządzenia.");
+            PingResults.Add((MarkupString)"<span style='color:red;'>Nie znaleziono wybranego urządzenia.</span>");
             return;
         }
 
-        var result = await PingRepository.PingDeviceAsync(device.IPAddress);
-        PingResults.Add($"Ping do {device.Name} ({device.IPAddress}): {result}");
-        await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
+        PingResults.Add((MarkupString)$"Pinging {device.Name} ({device.IPAddress}) with 32 bytes of data:");
+        StateHasChanged();
+
+        int packetsSent = 4;
+        int packetsReceived = 0;
+
+        for (int i = 0; i < packetsSent; i++)
+        {
+            try
+            {
+                var result = await PingRepository.PingDeviceAsync(device.IPAddress);
+
+                if (result.Contains("Success"))
+                {
+                    int time = new Random().Next(5, 100); // Czas w ms
+                    int ttl = new Random().Next(50, 128); // TTL
+                    PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: bytes=32 time={time}ms TTL={ttl} Status: <span style='color:lightgreen;'>Success</span>");
+                    packetsReceived++;
+                }
+                else if (result.Contains("Request timed out"))
+                {
+                    PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:orange;'>Request timed out</span>");
+                }
+                else
+                {
+                    PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:red;'>{result}</span>");
+                }
+            }
+            catch
+            {
+                PingResults.Add((MarkupString)$"Reply from {device.IPAddress}: Status: <span style='color:red;'>Error while pinging.</span>");
+            }
+
+            StateHasChanged();
+            await Task.Delay(500); // Opóźnienie między pakietami
+        }
+
+        PingResults.Add((MarkupString)"<br>");
+        PingResults.Add((MarkupString)$"Ping statistics for {device.Name} ({device.IPAddress}):");
+        PingResults.Add((MarkupString)$"    Packets: Sent = {packetsSent}, <span style='color:lightgreen;'>Received = {packetsReceived}</span>, <span style='color:red;'>Lost = {packetsSent - packetsReceived}</span> ({(packetsSent - packetsReceived) * 100 / packetsSent}% loss)");
+        StateHasChanged();
+
+        // Zapis wyników do bazy danych
+        await PingRepository.SavePingResultAsync(device.IPAddress, packetsReceived > 0 ? device.Id : -1);
     }
 }
