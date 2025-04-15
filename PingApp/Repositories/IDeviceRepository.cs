@@ -12,6 +12,10 @@ namespace PingApp.Repositories
 
         Task<IEnumerable<Device>> GetDevicesByCategoryIdAsync(int categoryId);
         Task<IEnumerable<Device>> GetDevicesByGroupIdAsync(int groupId);
+       
+        Task<List<Device>> GetDevicesByGroupOrCategoryAsync(int? groupId, int? categoryId);
+        
+
 
     }
 }

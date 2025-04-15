@@ -1,0 +1,245 @@
+﻿@page "/MyComponents/grouppinger"
+@using PingApp.Models
+@using PingApp.Repositories
+@inject IDeviceRepository DeviceRepository
+@inject IDeviceGroupRepository DeviceGroupRepository
+@inject ICategoryRepository CategoryRepository
+@inject IPingRepository PingRepository
+
+<div>
+    <div class="grupowe">
+
+        <div class="grupowePING">
+            Wybierz grupę:
+            @if (DeviceGroupList == null || !DeviceGroupList.Any())
+            {
+                <p>Ładowanie grup urządzeń...</p>
+            }
+            else
+            {
+                <select @bind="SelectedGroupId">
+                    <option value="">Wybierz grupę...</option>
+                    @foreach (var group in DeviceGroupList)
+                    {
+                        <option value="@group.Id">@group.GroupName</option>
+                    }
+                </select>
+            }
+            <br />
+            Wybierz kategorię:
+            @if (CategoryList == null || !CategoryList.Any())
+            {
+                <p>Ładowanie kategorii...</p>
+            }
+            else
+            {
+                <select @bind="SelectedCategoryId">
+                    <option value="">Wybierz kategorię...</option>
+                    @foreach (var category in CategoryList)
+                    {
+                        <option value="@category.Id">@category.CategoryName</option>
+                    }
+                </select>
+            }
+
+            <br />
+
+            <button @onclick="ReloadDevices">Załaduj urządzenia</button>
+            <button @onclick="StartPing">Pinguj wszystkie urządzenia</button>
+            <button class="btn btn-danger" @onclick="CancelPing">STOP PING</button>
+        </div>
+        <div class="ladowanie">
+            @if (IsPingInProgress)
+            {
+                <div class="loader-container">
+                    <div class="loaderdot"></div>
+                </div>
+            }
+            else if (WasPingCancelled)
+            {
+                <div class="ping-summary">
+                    <p style="color: darkorange; font-weight: bold;">⚠️ Pingownie zatrzymane!</p>
+                </div>
+            }
+            else if (PingResults.Count > 0)
+            {
+                <div class="ping-summary">
+                    Podsumowanie:
+                    <p>✅ Online: <b>@Devices.Count(d => PingResults.ContainsKey(d.Id) && PingResults[d.Id].Contains("Success"))</b></p>
+                    <p>❌ Offline: <b>@Devices.Count(d => PingResults.ContainsKey(d.Id) && !PingResults[d.Id].Contains("Success"))</b></p>
+                    <p>📌 Łącznie: <b>@Devices.Count</b></p>
+                </div>
+            }
+        </div>
+
+
+
+
+    </div>
+
+    
+
+    <div class="grupoweping-tab">
+        <div class="scrollable-table-container-grouppinger">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Nazwa urządzenia</th>
+                    <th>Adres IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var device in Devices)
+                {
+                    <tr>
+                        <td>
+                            @if (PingResults.ContainsKey(device.Id))
+                            {
+                                @if (PingResults[device.Id].Contains("Success"))
+                                {
+                                    <span style="color:green;">Online</span>
+                                }
+                                else
+                                {
+                                    <span style="color:red;">Offline</span>
+                                }
+                            }
+                            else
+                            {
+                                @if (IsPingInProgress)
+                                {
+                                    <div class="loader"></div>
+                                }
+                            }
+                        </td>
+                        <td>@device.Name</td>
+                        <td>@device.IPAddress</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    </div>
+    
+</div>
+
+@code {
+    private List<Device> Devices = new();
+    private Dictionary<int, string> PingResults = new();
+    private bool IsPingInProgress = false;
+    private List<DeviceGroup> DeviceGroupList = new();
+    private List<Category> CategoryList = new();
+    private int? SelectedGroupId { get; set; }
+    private int? SelectedCategoryId { get; set; }
+
+    private CancellationTokenSource? PingCancellationTokenSource = null;
+    private bool WasPingCancelled = false;
+    
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadSelectionFields();
+    }
+
+    private void CancelPing()
+    {
+        if (PingCancellationTokenSource != null)
+        {
+            PingCancellationTokenSource.Cancel(); // Anulowanie pingowania
+            PingCancellationTokenSource.Dispose();
+            PingCancellationTokenSource = null;
+        }
+
+        IsPingInProgress = false;
+        WasPingCancelled = true; // Ustawiamy flagę że zostało anulowane
+        PingResults.Clear();
+        StateHasChanged();
+    }
+
+
+    private async Task ReloadSelectionFields()
+    {
+        DeviceGroupList = (await DeviceGroupRepository.GetAllDeviceGroupsAsync()).ToList();
+        CategoryList = (await CategoryRepository.GetAllCategoriesAsync()).ToList();
+
+        SelectedGroupId = null;
+        SelectedCategoryId = null;
+
+        StateHasChanged();
+    }
+
+    private async Task ReloadDevices()
+    {
+        if (SelectedGroupId.HasValue)
+        {
+            Devices = (await DeviceRepository.GetDevicesByGroupIdAsync(SelectedGroupId.Value)).ToList();
+        }
+        else if (SelectedCategoryId.HasValue)
+        {
+            Devices = (await DeviceRepository.GetDevicesByCategoryIdAsync(SelectedCategoryId.Value)).ToList();
+        }
+        else
+        {
+            Devices = new List<Device>();
+        }
+
+        PingResults.Clear(); // Resetowanie statusów urządzeń
+        IsPingInProgress = false; // Wyłączenie animacji ładowania przy załadowaniu nowej listy
+
+        await ReloadSelectionFields();
+        StateHasChanged();
+    }
+
+    private async Task StartPing()
+    {
+        PingCancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = PingCancellationTokenSource.Token;
+
+        IsPingInProgress = true;
+        WasPingCancelled = false;
+        PingResults.Clear();
+        StateHasChanged();
+
+        foreach (var device in Devices)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var result = await PingRepository.PingDeviceAsync(device.IPAddress);
+
+                // ⛔️ Jeśli anulowano po pingowaniu – nie dodawaj wyniku
+                if (WasPingCancelled || cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                PingResults[device.Id] = result;
+                await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
+            }
+            catch (OperationCanceledException)
+            {
+                WasPingCancelled = true;
+                break;
+            }
+            catch (Exception ex)
+            {
+                if (!WasPingCancelled && !cancellationToken.IsCancellationRequested)
+                {
+                    PingResults[device.Id] = $"Błąd: {ex.Message}";
+                    await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
+                }
+            }
+
+            StateHasChanged();
+        }
+
+        IsPingInProgress = false;
+        StateHasChanged();
+    }
+
+
+}

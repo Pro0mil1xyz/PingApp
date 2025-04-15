@@ -16,34 +16,37 @@
 }
 else
 {
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Nazwa</th>
-                <th>Adres IP</th>
-                <th>Kategoria</th>
-                <th>Grupa</th>
-                <th>Akcje</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var device in DeviceList)
-            {
+    <div class="scrollable-table-container">
+        <table class="table table-striped">
+            <thead>
                 <tr>
-                    <td>@device.Id</td>
-                    <td>@device.Name</td>
-                    <td>@device.IPAddress</td>
-                    <td>@device.Category?.CategoryName</td>
-                    <td>@device.Group?.GroupName</td>
-                    <td>
-                        <button @onclick="() => EditDevice(device)">Edytuj</button>
-                        <button @onclick="() => DeleteDevice(device.Id)">Usuń</button>
-                    </td>
+                    <th>Id</th>
+                    <th>Nazwa</th>
+                    <th>Adres IP</th>
+                    <th>Kategoria</th>
+                    <th>Grupa</th>
+                    <th>Akcje</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var device in DeviceList)
+                {
+                    <tr>
+                        <td>@device.Id</td>
+                        <td>@device.Name</td>
+                        <td>@device.IPAddress</td>
+                        <td>@device.Category?.CategoryName</td>
+                        <td>@device.Group?.GroupName</td>
+                        <td>
+                            <button @onclick="() => EditDevice(device)">Edytuj</button>
+                            <button @onclick="() => DeleteDevice(device.Id)">Usuń</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
 
     
 }

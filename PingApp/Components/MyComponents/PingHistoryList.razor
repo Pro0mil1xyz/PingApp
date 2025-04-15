@@ -18,29 +18,32 @@ else
     <div>
         <button class="btn btn-danger" @onclick="DeleteAllPingHistory">Usuń całą historię</button>
     </div>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Adres IP</th>
-                <th>Nazwa Urządzenia</th>
-                <th>Data</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var ping in pingHistoryItems)
-            {
+
+    <div class="scrollable-table-container">
+        <table class="table table-striped">
+            <thead>
                 <tr>
-                    <td>@ping.Id</td>
-                    <td>@ping.IPAddress</td>
-                    <td>@(ping.Device != null ? ping.Device.Name : "Nieznane urządzenie")</td>
-                    <td>@ping.Date.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                    <td>@ping.Status</td>
+                    <th>Id</th>
+                    <th>Adres IP</th>
+                    <th>Nazwa Urządzenia</th>
+                    <th>Data</th>
+                    <th>Status</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var ping in pingHistoryItems)
+                {
+                    <tr>
+                        <td>@ping.Id</td>
+                        <td>@ping.IPAddress</td>
+                        <td>@(ping.Device != null ? ping.Device.Name : "Nieznane urządzenie")</td>
+                        <td>@ping.Date.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@ping.Status</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
 @code {

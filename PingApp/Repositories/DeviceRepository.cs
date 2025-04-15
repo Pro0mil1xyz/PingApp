@@ -108,5 +108,30 @@
                     .ToListAsync();
             }
         }
+
+        // Pobierz urządzenia według grupy i/lub kategorii
+        public async Task<List<Device>> GetDevicesByGroupOrCategoryAsync(int? groupId, int? categoryId)
+        {
+            using (var dbContext = _context.CreateDbContext())
+            {
+                var query = dbContext.Devices.AsQueryable();
+
+                if (groupId.HasValue)
+                {
+                    query = query.Where(d => d.GroupId == groupId.Value);
+                }
+
+                if (categoryId.HasValue)
+                {
+                    query = query.Where(d => d.CategoryId == categoryId.Value);
+                }
+
+                return await query
+                    .Include(d => d.Category) // Opcjonalne
+                    .Include(d => d.Group) // Opcjonalne
+                    .ToListAsync(); // Zwracamy konkretny typ List<Device>
+            }
+        }
+
     }
 }

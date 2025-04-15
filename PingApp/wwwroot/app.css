@@ -1,38 +1,220 @@
+/* HTML: <div class="loaderdot"></div> */
+
+.loaderdot {
+    width: 50px;
+    aspect-ratio: 1;
+    display: grid;
+    border: 4px solid #0000;
+    border-radius: 50%;
+    border-color: #ccc #0000;
+    animation: l16 1s infinite linear;
+}
+
+    .loaderdot::before,
+    .loaderdot::after {
+        content: "";
+        grid-area: 1/1;
+        margin: 2px;
+        border: inherit;
+        border-radius: 50%;
+    }
+
+    .loaderdot::before {
+        border-color: #f03355 #0000;
+        animation: inherit;
+        animation-duration: .5s;
+        animation-direction: reverse;
+    }
+
+    .loaderdot::after {
+        margin: 8px;
+    }
+
+@keyframes l16 {
+    100% {
+        transform: rotate(1turn)
+    }
+}
+
+
+
+
+
+
+/* HTML: <div class="loader"></div> */
+.loader {
+    width: 60px;
+    aspect-ratio: 2;
+    --_g: no-repeat radial-gradient(circle closest-side,#000 90%,#0000);
+    background: var(--_g) 0% 50%, var(--_g) 50% 50%, var(--_g) 100% 50%;
+    background-size: calc(100%/3) 50%;
+    animation: l3 1s infinite linear;
+}
+
+@keyframes l3 {
+    20% {
+        background-position: 0% 0%, 50% 50%,100% 50%
+    }
+
+    40% {
+        background-position: 0% 100%, 50% 0%,100% 50%
+    }
+
+    60% {
+        background-position: 0% 50%, 50% 100%,100% 0%
+    }
+
+    80% {
+        background-position: 0% 50%, 50% 50%,100% 100%
+    }
+}
+
+
+
+
 
 
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background-image: url(images/background.jpg);
     color: white;
+}
 
+.scrollable-table-container {
+    max-height: 600px; /* Dowolna maksymalna wysokoœæ */
+    overflow-y: auto;
+}
+
+.scrollable-table-container-grouppinger {
+    max-height: 500px; /* Dowolna maksymalna wysokoœæ */
 }
 
 
 
+.everything {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-wrap: wrap;
+}
+    .everything .scrollable-table-container {
+        max-height: 300px;
+    }
+    .urzondzenia {
+        width: 50%;
+        height: 50%;
+        padding: 20px;
+    }
 .kategorie {
     width: 50%;
     height: 50%;
     padding: 20px;
 }
-
-.urzondzenia {
-    width: 50%;
-    height: 50%;
-    float: right;
-    padding: 20px;
-}
-
 .grupy {
     width: 50%;
     height: 50%;
     padding: 20px;
 }
-
 .historia {
     width: 50%;
     height: 50%;
-    float: left;
+    padding: 20px;
 }
+
+
+
+
+.IP {
+    width: 100%;
+    height: 50%;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.IPmanualnie {
+    width: 50%;
+    height: 50%;
+    float: left;
+    padding: 10px;
+}
+
+.grupowePING {
+    width: 50%;
+    height: 50%;
+    float: left;
+    padding: 10px;
+}
+
+.ladowanie {
+    width: 50%;
+    height: 50%;
+    float: right;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+}
+
+.ping-summary {
+    width: 100%;
+    text-align: center;
+}
+
+.grupowe {
+    width: 100%;
+    height: 30%;
+}
+
+.grupoweping-tab {
+    width: 100%;
+    height: 70%;
+    
+    
+}
+
+.wynikpingowanie {
+    width: 100%;
+    height: 50%;
+    float: left;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+
+
+
+
+
+input[type="text"],
+select {
+    width: 40%;
+    padding: 8px 10px;
+    margin: 6px auto;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #fff;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+    input[type="text"]:focus,
+    select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+        outline: none;
+    }
+
 
 button {
     padding: 8px 12px;
