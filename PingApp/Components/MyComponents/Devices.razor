@@ -16,9 +16,9 @@
 }
 else
 {
-    <div class="scrollable-table-container">
-        <table class="table table-striped">
-            <thead>
+    <div class="scrollable-table-container" style="overflow-y: auto;">
+        <table class="table table-striped table-bordered">
+            <thead class="sticky-top" style="top: 0; z-index: 2;">
                 <tr>
                     <th @onclick="@(() => SortTable("Id"))" style="cursor: pointer;">
                         Id
@@ -63,8 +63,26 @@ else
                     <th>Akcje</th>
                 </tr>
             </thead>
+
+            @if (FirstVisibleDevice != null)
+            {
+                <tbody>
+                    <tr class="table-primary sticky-top" style="top: 35px; z-index: 1;">
+                        <td>@FirstVisibleDevice.Id</td>
+                        <td>@FirstVisibleDevice.Name</td>
+                        <td>@FirstVisibleDevice.IPAddress</td>
+                        <td>@FirstVisibleDevice.Category?.CategoryName</td>
+                        <td>@FirstVisibleDevice.Group?.GroupName</td>
+                        <td>
+                            <button @onclick="() => EditDevice(FirstVisibleDevice)">Edytuj</button>
+                            <button @onclick="() => DeleteDevice(FirstVisibleDevice.Id)">Usuń</button>
+                        </td>
+                    </tr>
+                </tbody>
+            }
+
             <tbody>
-                @foreach (var device in DeviceList)
+                @foreach (var device in SortedDeviceList)
                 {
                     <tr>
                         <td>@device.Id</td>
@@ -83,7 +101,6 @@ else
     </div>
 }
 
-<!-- Formularz do dodawania i edytowania urządzenia -->
 @if (IsAddEditFormVisible)
 {
     <div class="modal">
@@ -123,6 +140,8 @@ else
 
 @code {
     private IEnumerable<Device> DeviceList;
+    private IEnumerable<Device> SortedDeviceList = new List<Device>();
+    private Device? FirstVisibleDevice;
     private Device DeviceForm = new Device();
     private bool IsAddEditFormVisible = false;
     private bool IsEditing = false;
@@ -131,23 +150,23 @@ else
     private string CurrentSortColumn = "Id";
     private bool SortAscending = true;
 
-    // Załadowanie urządzeń przy inicjalizacji
     protected override async Task OnInitializedAsync()
     {
-        DeviceList = await DeviceRepository.GetAllDevicesAsync() ?? new List<Device>();
+        var allDevices = await DeviceRepository.GetAllDevicesAsync() ?? new List<Device>();
         Categories = await CategoryRepository.GetAllCategoriesAsync();
         DeviceGroups = await DeviceGroupRepository.GetAllDeviceGroupsAsync();
+
+        DeviceList = allDevices;
+        UpdateSortedDevices(DeviceList);
     }
 
-    // Wyświetlenie formularza dodawania urządzenia
     private void ShowAddDeviceForm()
     {
         IsEditing = false;
-        DeviceForm = new Device(); // Reset formularza
+        DeviceForm = new Device();
         IsAddEditFormVisible = true;
     }
 
-    // Wyświetlenie formularza edycji urządzenia
     private void EditDevice(Device device)
     {
         IsEditing = true;
@@ -162,7 +181,6 @@ else
         IsAddEditFormVisible = true;
     }
 
-    // Zapisanie urządzenia (dodanie lub edytowanie)
     private async Task SaveDevice()
     {
         if (IsEditing)
@@ -174,34 +192,32 @@ else
             await DeviceRepository.AddDeviceAsync(DeviceForm);
         }
 
-        // Po zapisaniu, zamknięcie formularza i odświeżenie listy
         IsAddEditFormVisible = false;
         DeviceList = await DeviceRepository.GetAllDevicesAsync();
+        UpdateSortedDevices(DeviceList);
     }
 
-    // Anulowanie edycji lub dodawania
     private void CancelAddEdit()
     {
         IsAddEditFormVisible = false;
     }
 
-    // Usuwanie urządzenia
     private async Task DeleteDevice(int id)
     {
         var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunąć to urządzenie?");
         if (confirmDelete)
         {
             await DeviceRepository.DeleteDeviceAsync(id);
-            DeviceList = await DeviceRepository.GetAllDevicesAsync(); // Odświeżenie listy
+            DeviceList = await DeviceRepository.GetAllDevicesAsync();
+            UpdateSortedDevices(DeviceList);
         }
     }
 
-    // Sortowanie po kliknięciu na nagłówek
     private void SortTable(string column)
     {
         if (CurrentSortColumn == column)
         {
-            SortAscending = !SortAscending; // Odwrócenie sortowania
+            SortAscending = !SortAscending;
         }
         else
         {
@@ -209,7 +225,14 @@ else
             SortAscending = true;
         }
 
-        DeviceList = SortDevices(DeviceList, CurrentSortColumn, SortAscending);
+        UpdateSortedDevices(DeviceList);
+    }
+
+    private void UpdateSortedDevices(IEnumerable<Device> devices)
+    {
+        var sorted = SortDevices(devices, CurrentSortColumn, SortAscending).ToList();
+        FirstVisibleDevice = sorted.FirstOrDefault();
+        SortedDeviceList = sorted.Skip(1);
     }
 
     private IEnumerable<Device> SortDevices(IEnumerable<Device> devices, string column, bool ascending)

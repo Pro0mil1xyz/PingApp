@@ -14,31 +14,44 @@
 }
 else
 {
-    <div class="scrollable-table-container">
-        <table class="table table-striped">
-            <thead>
+    <div class="scrollable-table-container" style="overflow-y: auto;">
+        <table class="table table-striped table-bordered">
+            <thead class="sticky-top" style="top: 0; z-index: 2;">
                 <tr>
-                    <th @onclick="@(() => SortTable("Id"))" style="cursor: pointer;">
+                    <th @onclick="@(() => SortBy("Id"))" style="cursor: pointer;">
                         Id
                         @if (CurrentSortColumn == "Id")
                         {
                             <span>@(SortAscending ? "↑" : "↓")</span>
                         }
                     </th>
-
-                    <th @onclick="@(() => SortTable("GroupName"))" style="cursor: pointer;">
+                    <th @onclick="@(() => SortBy("GroupName"))" style="cursor: pointer;">
                         Nazwa grupy
                         @if (CurrentSortColumn == "GroupName")
                         {
                             <span>@(SortAscending ? "↑" : "↓")</span>
                         }
                     </th>
-
                     <th>Akcje</th>
                 </tr>
             </thead>
+
+            @if (FirstVisibleGroup != null)
+            {
+                <tbody>
+                    <tr class="table-primary sticky-top" style="top: 35px; z-index: 1;">
+                        <td>@FirstVisibleGroup.Id</td>
+                        <td>@FirstVisibleGroup.GroupName</td>
+                        <td>
+                            <button @onclick="() => EditDeviceGroup(FirstVisibleGroup)">Edytuj</button>
+                            <button @onclick="() => DeleteDeviceGroup(FirstVisibleGroup.Id)">Usuń</button>
+                        </td>
+                    </tr>
+                </tbody>
+            }
+
             <tbody>
-                @foreach (var group in DeviceGroupList)
+                @foreach (var group in SortedDeviceGroups)
                 {
                     <tr>
                         <td>@group.Id</td>
@@ -54,7 +67,6 @@ else
     </div>
 }
 
-<!-- Formularz do dodawania i edytowania grupy -->
 @if (IsAddEditFormVisible)
 {
     <div class="modal">
@@ -74,27 +86,62 @@ else
 
 @code {
     private IEnumerable<DeviceGroup> DeviceGroupList;
+    private IEnumerable<DeviceGroup> SortedDeviceGroups = new List<DeviceGroup>();
+    private DeviceGroup? FirstVisibleGroup;
+
     private DeviceGroup DeviceGroupForm = new DeviceGroup();
     private bool IsAddEditFormVisible = false;
     private bool IsEditing = false;
+
     private string CurrentSortColumn = "Id";
     private bool SortAscending = true;
 
-    // Załadowanie grup urządzeń przy inicjalizacji
     protected override async Task OnInitializedAsync()
     {
-        DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync() ?? new List<DeviceGroup>();
+        var list = await DeviceGroupRepository.GetAllDeviceGroupsAsync() ?? new List<DeviceGroup>();
+        UpdateSortedGroups(list);
     }
 
-    // Wyświetlenie formularza dodawania grupy
+    private void SortBy(string column)
+    {
+        if (CurrentSortColumn == column)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            CurrentSortColumn = column;
+            SortAscending = true;
+        }
+
+        UpdateSortedGroups(DeviceGroupList);
+    }
+
+    private void UpdateSortedGroups(IEnumerable<DeviceGroup> groups)
+    {
+        DeviceGroupList = groups;
+        var sorted = SortGroups(groups).ToList();
+        FirstVisibleGroup = sorted.FirstOrDefault();
+        SortedDeviceGroups = sorted.Skip(1);
+    }
+
+    private IEnumerable<DeviceGroup> SortGroups(IEnumerable<DeviceGroup> groups)
+    {
+        return CurrentSortColumn switch
+        {
+            "Id" => SortAscending ? groups.OrderBy(g => g.Id) : groups.OrderByDescending(g => g.Id),
+            "GroupName" => SortAscending ? groups.OrderBy(g => g.GroupName) : groups.OrderByDescending(g => g.GroupName),
+            _ => groups
+        };
+    }
+
     private void ShowAddDeviceGroupForm()
     {
         IsEditing = false;
-        DeviceGroupForm = new DeviceGroup(); // Reset formularza
+        DeviceGroupForm = new DeviceGroup();
         IsAddEditFormVisible = true;
     }
 
-    // Wyświetlenie formularza edycji grupy
     private void EditDeviceGroup(DeviceGroup group)
     {
         IsEditing = true;
@@ -106,7 +153,6 @@ else
         IsAddEditFormVisible = true;
     }
 
-    // Zapisanie grupy (dodanie lub edytowanie)
     private async Task SaveDeviceGroup()
     {
         if (IsEditing)
@@ -118,51 +164,24 @@ else
             await DeviceGroupRepository.AddDeviceGroupAsync(DeviceGroupForm);
         }
 
-        // Po zapisaniu, zamknięcie formularza i odświeżenie listy
         IsAddEditFormVisible = false;
-        DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync();
+        var updated = await DeviceGroupRepository.GetAllDeviceGroupsAsync();
+        UpdateSortedGroups(updated);
     }
 
-    // Anulowanie edycji lub dodawania
     private void CancelAddEdit()
     {
         IsAddEditFormVisible = false;
     }
 
-    // Usuwanie grupy
     private async Task DeleteDeviceGroup(int id)
     {
         var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunąć tę grupę?");
         if (confirmDelete)
         {
             await DeviceGroupRepository.DeleteDeviceGroupAsync(id);
-            DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync(); // Odświeżenie listy
+            var updated = await DeviceGroupRepository.GetAllDeviceGroupsAsync();
+            UpdateSortedGroups(updated);
         }
-    }
-
-    // Sortowanie po kliknięciu na nagłówek
-    private void SortTable(string column)
-    {
-        if (CurrentSortColumn == column)
-        {
-            SortAscending = !SortAscending; // Odwrócenie sortowania
-        }
-        else
-        {
-            CurrentSortColumn = column;
-            SortAscending = true;
-        }
-
-        DeviceGroupList = SortDeviceGroups(DeviceGroupList, CurrentSortColumn, SortAscending);
-    }
-
-    private IEnumerable<DeviceGroup> SortDeviceGroups(IEnumerable<DeviceGroup> deviceGroups, string column, bool ascending)
-    {
-        return column switch
-        {
-            "Id" => ascending ? deviceGroups.OrderBy(g => g.Id) : deviceGroups.OrderByDescending(g => g.Id),
-            "GroupName" => ascending ? deviceGroups.OrderBy(g => g.GroupName) : deviceGroups.OrderByDescending(g => g.GroupName),
-            _ => deviceGroups
-        };
     }
 }
