@@ -16,18 +16,52 @@ else if (!pingHistoryItems.Any())
 else
 {
     <div>
-        <button class="btn btn-danger" @onclick="DeleteAllPingHistory">Usuń całą historię</button>
+        <button class="btn btn-danger" @onclick="DeleteAllPingHistory">⚠️ Usuń całą historię ⚠️</button>
     </div>
 
     <div class="scrollable-table-container">
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>Id</th>
-                    <th>Adres IP</th>
-                    <th>Nazwa Urządzenia</th>
-                    <th>Data</th>
-                    <th>Status</th>
+                    <th @onclick="@(() => SortTable("Id"))" style="cursor: pointer;">
+                        Id
+                        @if (CurrentSortColumn == "Id")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
+
+                    <th @onclick="@(() => SortTable("IPAddress"))" style="cursor: pointer;">
+                        Adres IP
+                        @if (CurrentSortColumn == "IPAddress")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
+
+                    <th @onclick="@(() => SortTable("DeviceName"))" style="cursor: pointer;">
+                        Nazwa Urządzenia
+                        @if (CurrentSortColumn == "DeviceName")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
+
+                    <th @onclick="@(() => SortTable("Date"))" style="cursor: pointer;">
+                        Data
+                        @if (CurrentSortColumn == "Date")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
+
+                    <th @onclick="@(() => SortTable("Status"))" style="cursor: pointer;">
+                        Status
+                        @if (CurrentSortColumn == "Status")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -48,6 +82,8 @@ else
 
 @code {
     private IEnumerable<PingHistory> pingHistoryItems = new List<PingHistory>();
+    private string CurrentSortColumn = "Date";
+    private bool SortAscending = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -63,12 +99,40 @@ else
         }
     }
 
+    private void SortTable(string column)
+    {
+        if (CurrentSortColumn == column)
+        {
+            SortAscending = !SortAscending; // Odwrócenie sortowania
+        }
+        else
+        {
+            CurrentSortColumn = column;
+            SortAscending = true; // Domyślnie sortowanie rosnące
+        }
+
+        pingHistoryItems = SortPingHistory(pingHistoryItems, CurrentSortColumn, SortAscending);
+    }
+
+    private IEnumerable<PingHistory> SortPingHistory(IEnumerable<PingHistory> pingHistory, string column, bool ascending)
+    {
+        return column switch
+        {
+            "Id" => ascending ? pingHistory.OrderBy(p => p.Id) : pingHistory.OrderByDescending(p => p.Id),
+            "IPAddress" => ascending ? pingHistory.OrderBy(p => p.IPAddress) : pingHistory.OrderByDescending(p => p.IPAddress),
+            "DeviceName" => ascending ? pingHistory.OrderBy(p => p.Device?.Name) : pingHistory.OrderByDescending(p => p.Device?.Name),
+            "Date" => ascending ? pingHistory.OrderBy(p => p.Date) : pingHistory.OrderByDescending(p => p.Date),
+            "Status" => ascending ? pingHistory.OrderBy(p => p.Status) : pingHistory.OrderByDescending(p => p.Status),
+            _ => pingHistory
+        };
+    }
+
     private async Task DeleteAllPingHistory()
     {
         try
         {
-            await PingRepository.DeleteAllPingHistoriesAsync(); // Wywołanie metody usuwania
-            pingHistoryItems = new List<PingHistory>(); // Odświeżenie widoku
+            await PingRepository.DeleteAllPingHistoriesAsync();
+            pingHistoryItems = new List<PingHistory>();
         }
         catch (Exception ex)
         {

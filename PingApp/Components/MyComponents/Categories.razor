@@ -16,35 +16,44 @@
 else
 {
     <div class="scrollable-table-container">
-
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Nazwa</th>
-                <th>Akcje</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var category in CategoryList)
-            {
+        <table class="table table-striped">
+            <thead class="sticky-header">
                 <tr>
-                    <td>@category.Id</td>
-                    <td>@category.CategoryName</td>
-                    <td>
-                        <button @onclick="() => EditCategory(category)">Edytuj</button>
-                        <button @onclick="() => DeleteCategory(category.Id)">Usuń</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                    <th @onclick="@(() => SortBy("Id"))" style="cursor: pointer;">
+                        Id
+                        @if (CurrentSortColumn == "Id")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
 
+                    <th @onclick="@(() => SortBy("CategoryName"))" style="cursor: pointer;">
+                        Nazwa
+                        @if (CurrentSortColumn == "CategoryName")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
+
+                    <th>Akcje</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var category in SortedCategoryList)
+                {
+                    <tr>
+                        <td>@category.Id</td>
+                        <td>@category.CategoryName</td>
+                        <td>
+                            <button @onclick="() => EditCategory(category)">Edytuj</button>
+                            <button @onclick="() => DeleteCategory(category.Id)">Usuń</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 
-    
-
-    <!-- Formularz do dodawania/edycji kategorii -->
     @if (IsAddEditFormVisible)
     {
         <div class="modal">
@@ -59,28 +68,51 @@ else
     }
 }
 
-
 @code {
     private IEnumerable<Category> CategoryList;
+    private IEnumerable<Category> SortedCategoryList => SortCategories(CategoryList);
+    private string CurrentSortColumn = "CategoryName";
+    private bool SortAscending = true;
+
     private Category CategoryForm = new Category();
     private bool IsAddEditFormVisible = false;
     private bool IsEditing = false;
 
     protected override async Task OnInitializedAsync()
     {
-        // Ładujemy listę kategorii
         CategoryList = await CategoryRepository.GetAllCategoriesAsync() ?? new List<Category>();
     }
 
-    // Logika do wyświetlania formularza dodawania kategorii
+    private void SortBy(string column)
+    {
+        if (CurrentSortColumn == column)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            CurrentSortColumn = column;
+            SortAscending = true;
+        }
+    }
+
+    private IEnumerable<Category> SortCategories(IEnumerable<Category> categories)
+    {
+        return CurrentSortColumn switch
+        {
+            "Id" => SortAscending ? categories.OrderBy(c => c.Id) : categories.OrderByDescending(c => c.Id),
+            "CategoryName" => SortAscending ? categories.OrderBy(c => c.CategoryName) : categories.OrderByDescending(c => c.CategoryName),
+            _ => categories
+        };
+    }
+
     private void ShowAddCategoryForm()
     {
         IsEditing = false;
-        CategoryForm = new Category(); // Reset formularza
+        CategoryForm = new Category();
         IsAddEditFormVisible = true;
     }
 
-    // Logika do wyświetlania formularza edycji kategorii
     private void EditCategory(Category category)
     {
         IsEditing = true;
@@ -92,7 +124,6 @@ else
         IsAddEditFormVisible = true;
     }
 
-    // Zapisz kategorię (dodaj lub edytuj)
     private async Task SaveCategory()
     {
         if (IsEditing)
@@ -104,25 +135,22 @@ else
             await CategoryRepository.AddCategoryAsync(CategoryForm);
         }
 
-        // Po zapisaniu, zamykamy formularz i odświeżamy listę
         IsAddEditFormVisible = false;
         CategoryList = await CategoryRepository.GetAllCategoriesAsync();
     }
 
-    // Anuluj edycję/dodawanie
     private void CancelAddEdit()
     {
         IsAddEditFormVisible = false;
     }
 
-    // Logika usuwania kategorii
     private async Task DeleteCategory(int id)
     {
         var confirmDelete = await JSRuntime.InvokeAsync<bool>("confirm", new object[] { "Czy na pewno chcesz usunąć tę kategorię?" });
         if (confirmDelete)
         {
             await CategoryRepository.DeleteCategoryAsync(id);
-            CategoryList = await CategoryRepository.GetAllCategoriesAsync(); // Odświeżenie listy
+            CategoryList = await CategoryRepository.GetAllCategoriesAsync();
         }
     }
 }

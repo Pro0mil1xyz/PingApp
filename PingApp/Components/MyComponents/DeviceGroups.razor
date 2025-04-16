@@ -15,33 +15,43 @@
 else
 {
     <div class="scrollable-table-container">
-
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Nazwa grupy</th>
-                <th>Akcje</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var group in DeviceGroupList)
-            {
+        <table class="table table-striped">
+            <thead>
                 <tr>
-                    <td>@group.Id</td>
-                    <td>@group.GroupName</td>
-                    <td>
-                        <button @onclick="() => EditDeviceGroup(group)">Edytuj</button>
-                        <button @onclick="() => DeleteDeviceGroup(group.Id)">Usuń</button>
-                    </td>
+                    <th @onclick="@(() => SortTable("Id"))" style="cursor: pointer;">
+                        Id
+                        @if (CurrentSortColumn == "Id")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
+
+                    <th @onclick="@(() => SortTable("GroupName"))" style="cursor: pointer;">
+                        Nazwa grupy
+                        @if (CurrentSortColumn == "GroupName")
+                        {
+                            <span>@(SortAscending ? "↑" : "↓")</span>
+                        }
+                    </th>
+
+                    <th>Akcje</th>
                 </tr>
-            }
-        </tbody>
-    </table>
-
+            </thead>
+            <tbody>
+                @foreach (var group in DeviceGroupList)
+                {
+                    <tr>
+                        <td>@group.Id</td>
+                        <td>@group.GroupName</td>
+                        <td>
+                            <button @onclick="() => EditDeviceGroup(group)">Edytuj</button>
+                            <button @onclick="() => DeleteDeviceGroup(group.Id)">Usuń</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
-
-    
 }
 
 <!-- Formularz do dodawania i edytowania grupy -->
@@ -62,13 +72,13 @@ else
     </div>
 }
 
-
-
 @code {
     private IEnumerable<DeviceGroup> DeviceGroupList;
     private DeviceGroup DeviceGroupForm = new DeviceGroup();
     private bool IsAddEditFormVisible = false;
     private bool IsEditing = false;
+    private string CurrentSortColumn = "Id";
+    private bool SortAscending = true;
 
     // Załadowanie grup urządzeń przy inicjalizacji
     protected override async Task OnInitializedAsync()
@@ -128,5 +138,31 @@ else
             await DeviceGroupRepository.DeleteDeviceGroupAsync(id);
             DeviceGroupList = await DeviceGroupRepository.GetAllDeviceGroupsAsync(); // Odświeżenie listy
         }
+    }
+
+    // Sortowanie po kliknięciu na nagłówek
+    private void SortTable(string column)
+    {
+        if (CurrentSortColumn == column)
+        {
+            SortAscending = !SortAscending; // Odwrócenie sortowania
+        }
+        else
+        {
+            CurrentSortColumn = column;
+            SortAscending = true;
+        }
+
+        DeviceGroupList = SortDeviceGroups(DeviceGroupList, CurrentSortColumn, SortAscending);
+    }
+
+    private IEnumerable<DeviceGroup> SortDeviceGroups(IEnumerable<DeviceGroup> deviceGroups, string column, bool ascending)
+    {
+        return column switch
+        {
+            "Id" => ascending ? deviceGroups.OrderBy(g => g.Id) : deviceGroups.OrderByDescending(g => g.Id),
+            "GroupName" => ascending ? deviceGroups.OrderBy(g => g.GroupName) : deviceGroups.OrderByDescending(g => g.GroupName),
+            _ => deviceGroups
+        };
     }
 }

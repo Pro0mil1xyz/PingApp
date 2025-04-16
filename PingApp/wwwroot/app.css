@@ -105,6 +105,7 @@ html, body {
         height: 50%;
         padding: 20px;
     }
+
 .kategorie {
     width: 50%;
     height: 50%;
@@ -192,7 +193,45 @@ html, body {
 }
 
 
+/* Sticky Header i Scrollowanie Tabeli */
+.scrollable-table-container {
+    max-height: 600px; /* Mo¿esz dostosowaæ do swoich potrzeb */
+    overflow-y: auto;
+    position: relative; /* Konieczne dla pozycjonowania sticky */
+}
 
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+    table th {
+        position: sticky;
+        top: 0;
+        background-color: #1b6ec2; /* Kolor t³a nag³ówków */
+        color: white; /* Kolor tekstu nag³ówków */
+        z-index: 1;
+        border-bottom: 2px solid #ddd;
+        text-align: left;
+        padding: 8px;
+        font-size: 14px;
+    }
+
+    table td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        font-size: 14px;
+    }
+
+    /* Ulepszenia dla tabeli */
+    table tr:nth-child(even) {
+        background-color: #f2f2f2; /* Lekko szare t³o dla parzystych wierszy */
+    }
+
+    table tr:hover {
+        background-color: #e0e0e0; /* Kolor t³a po najechaniu na wiersz */
+    }
 
 
 
