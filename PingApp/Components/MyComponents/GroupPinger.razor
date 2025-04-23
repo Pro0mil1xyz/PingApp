@@ -1,7 +1,6 @@
 ﻿@page "/MyComponents/grouppinger"
 @using PingApp.Models
 @using PingApp.Repositories
-@using System.Net.Sockets;
 @inject IDeviceRepository DeviceRepository
 @inject IDeviceGroupRepository DeviceGroupRepository
 @inject ICategoryRepository CategoryRepository
@@ -9,7 +8,6 @@
 
 <div>
     <div class="grupowe">
-
         <div class="grupowePING">
             Wybierz grupę:
             @if (DeviceGroupList == null || !DeviceGroupList.Any())
@@ -48,6 +46,15 @@
             <button @onclick="ReloadDevices">Załaduj urządzenia</button>
             <button @onclick="StartPing">Pinguj wszystkie urządzenia</button>
             <button class="btn btn-danger" @onclick="CancelPing">STOP PING</button>
+            <br />
+            <div>
+                <input type="checkbox" @bind="IsAutoPingEnabled" /> Automatyczne pingowanie
+                <br />
+                Interwał (sekundy):
+                <input type="range" min="30" max="1800" step="30" @bind="PingIntervalSeconds" />
+                <span>@PingIntervalSeconds sekundy</span>
+                <br />
+            </div>
         </div>
 
         <div class="ladowanie">
@@ -73,7 +80,6 @@
                 </div>
             }
         </div>
-
     </div>
 
     <div class="grupoweping-tab">
@@ -82,7 +88,6 @@
                 <thead>
                     <tr>
                         <th>Status</th>
-
                         <th @onclick="@(() => SortTable("Name"))" style="cursor: pointer;">
                             Nazwa urządzenia
                             @if (CurrentSortColumn == "Name")
@@ -90,7 +95,6 @@
                                 <span>@(SortAscending ? "↑" : "↓")</span>
                             }
                         </th>
-
                         <th @onclick="@(() => SortTable("IP"))" style="cursor: pointer;">
                             Adres IP
                             @if (CurrentSortColumn == "IP")
@@ -116,8 +120,18 @@
 </div>
 
 @code {
+    public class PingState
+    {
+        public bool LastOnline { get; set; }
+        public string LastColor { get; set; } = "green";
+        public int ConfirmCount { get; set; } = 0;
+        public bool? PendingChange { get; set; } = null;
+    }
+
     private List<Device> Devices = new();
     private Dictionary<int, string> PingResults = new();
+    private Dictionary<int, PingState> PingStates = new(); // ZAMIANA!
+
     private bool IsPingInProgress = false;
     private bool WasPingCancelled = false;
     private List<DeviceGroup> DeviceGroupList = new();
@@ -128,21 +142,20 @@
 
     private string CurrentSortColumn = "Name";
     private bool SortAscending = true;
-
     private IEnumerable<Device> SortedDevices => SortDevices(Devices, CurrentSortColumn, SortAscending);
+
+    private bool IsAutoPingEnabled = false;
+    private int PingIntervalSeconds = 60;
 
     private void SortTable(string column)
     {
         if (CurrentSortColumn == column)
-        {
             SortAscending = !SortAscending;
-        }
         else
         {
             CurrentSortColumn = column;
             SortAscending = true;
         }
-
         StateHasChanged();
     }
 
@@ -158,20 +171,67 @@
 
     private RenderFragment GetStatusMarkup(Device device) => builder =>
     {
-        if (PingResults.TryGetValue(device.Id, out var result))
+        if (IsPingInProgress)
         {
-            builder.OpenElement(0, "span");
-            builder.AddAttribute(1, "style", $"color:{(result.Contains("Success") ? "green" : "red")}");
-            builder.AddContent(2, result.Contains("Success") ? "Online" : "Offline");
-            builder.CloseElement();
-        }
-        else if (IsPingInProgress)
-        {
+            // Renderuj loader na początku
             builder.OpenElement(3, "div");
             builder.AddAttribute(4, "class", "loader");
             builder.CloseElement();
         }
+        else if (PingStates.TryGetValue(device.Id, out var state))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", $"status status-{state.LastColor}");
+            builder.AddContent(2, state.LastOnline ? "Online" : "Offline");
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.OpenElement(5, "span");
+            builder.AddAttribute(6, "class", "status status-unknown");
+            builder.AddContent(7, "Brak danych");
+            builder.CloseElement();
+        }
     };
+
+    private void UpdateDevicePingState(int deviceId, bool currentOnline)
+    {
+        if (!PingStates.TryGetValue(deviceId, out var state))
+        {
+            state = new PingState
+                {
+                    LastOnline = currentOnline,
+                    LastColor = currentOnline ? "green" : "red"
+                };
+            PingStates[deviceId] = state;
+        }
+        else
+        {
+            if (state.PendingChange == null)
+            {
+                if (currentOnline != state.LastOnline)
+                {
+                    state.PendingChange = currentOnline;
+                    state.LastColor = "yellow";
+                }
+            }
+            else
+            {
+                // Kolejna pętla potwierdza lub anuluje zmianę
+                if (currentOnline == state.PendingChange)
+                {
+                    state.LastOnline = currentOnline;
+                    state.LastColor = currentOnline ? "green" : "red";
+                    state.PendingChange = null;
+                }
+                else
+                {
+                    state.PendingChange = null;
+                    state.LastColor = state.LastOnline ? "green" : "red";
+                }
+            }
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -187,21 +247,16 @@
     private async Task ReloadDevices()
     {
         if (SelectedGroupId.HasValue)
-        {
             Devices = (await DeviceRepository.GetDevicesByGroupIdAsync(SelectedGroupId.Value)).ToList();
-        }
         else if (SelectedCategoryId.HasValue)
-        {
             Devices = (await DeviceRepository.GetDevicesByCategoryIdAsync(SelectedCategoryId.Value)).ToList();
-        }
         else
-        {
             Devices = new List<Device>();
-        }
 
         PingResults.Clear();
         IsPingInProgress = false;
         WasPingCancelled = false;
+        PingStates.Clear();
 
         await ReloadSelectionFields();
         StateHasChanged();
@@ -209,18 +264,33 @@
 
     private async Task StartPing()
     {
-        try
+        if (IsAutoPingEnabled)
         {
             PingCancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = PingCancellationTokenSource.Token;
 
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await PingDevices();
+                await Task.Delay(PingIntervalSeconds * 1000, cancellationToken);
+            }
+        }
+        else
+        {
+            await PingDevices();
+        }
+    }
+
+    private async Task PingDevices()
+    {
+        try
+        {
             IsPingInProgress = true;
             WasPingCancelled = false;
-            PingResults.Clear();
             await InvokeAsync(StateHasChanged);
 
             var pingTasks = new List<Task>();
-            var semaphore = new SemaphoreSlim(4);  //maksymalna ilość pingów wykonywanych jednocześnie
+            var semaphore = new SemaphoreSlim(10);
 
             foreach (var device in Devices)
             {
@@ -230,39 +300,47 @@
 
                     try
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-
                         var result = await PingRepository.PingDeviceAsync(device.IPAddress);
-                        if (!WasPingCancelled && !cancellationToken.IsCancellationRequested)
+
+                        lock (PingResults)
                         {
                             PingResults[device.Id] = result;
-                            await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
+                        }
+
+                        lock (PingStates)
+                        {
+                            bool isOnline = result.Contains("Success");
+                            UpdateDevicePingState(device.Id, isOnline);
                         }
                     }
                     catch (Exception ex)
                     {
-                        PingResults[device.Id] = $"Błąd: {ex.Message}";
+                        lock (PingResults)
+                        {
+                            PingResults[device.Id] = $"Błąd: {ex.Message}";
+                        }
                     }
                     finally
                     {
                         semaphore.Release();
                         await InvokeAsync(StateHasChanged);
                     }
-                }, cancellationToken));
+                }));
             }
 
             await Task.WhenAll(pingTasks);
         }
         catch (Exception ex)
         {
-            PingResults.Add(-1, $"Krytyczny błąd: {ex.Message}");
+            lock (PingResults)
+            {
+                PingResults[-1] = $"Krytyczny błąd: {ex.Message}";
+            }
         }
         finally
         {
             IsPingInProgress = false;
             await InvokeAsync(StateHasChanged);
-            PingCancellationTokenSource?.Dispose();
-            PingCancellationTokenSource = null;
         }
     }
 
@@ -274,8 +352,11 @@
 
         IsPingInProgress = false;
         WasPingCancelled = true;
+
         PingResults.Clear();
+        PingStates.Clear(); // Tylko tu czyścisz stan
 
         StateHasChanged();
     }
 }
+

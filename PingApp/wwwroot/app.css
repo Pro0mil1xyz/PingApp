@@ -91,6 +91,31 @@ html, body {
 
 
 
+
+.status-green {
+    color: green;
+    font-weight: bold;
+}
+
+.status-red {
+    color: red;
+    font-weight: bold;
+}
+
+.status-yellow {
+    color: orange;
+    font-weight: bold;
+}
+
+.status-unknown {
+    color: gray;
+    font-style: italic;
+}
+
+
+
+
+
 .everything {
     width: 100%;
     height: 100%;
