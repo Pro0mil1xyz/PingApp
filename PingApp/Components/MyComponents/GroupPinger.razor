@@ -50,9 +50,26 @@
             <div>
                 <input type="checkbox" @bind="IsAutoPingEnabled" /> Automatyczne pingowanie
                 <br />
-                Interwał (sekundy):
-                <input type="range" min="30" max="1800" step="30" @bind="PingIntervalSeconds" />
-                <span>@PingIntervalSeconds sekundy</span>
+                Interwał 
+
+                <select @bind="PingIntervalSeconds">
+                    <option value="10">10 sek</option>
+                    <option value="30">30 sek</option>
+                    <option value="60">1 min</option>
+                    <option value="180">3 min</option>
+                    <option value="300">5 min</option>
+                    <option value="600">10 min</option>
+                    <option value="1800">30 min</option>
+                    <option value="custom">Własne (w sekundach)</option>
+                </select>
+
+                @if (PingIntervalSeconds == "custom")
+                {
+                    <input type="number" min="1" max="3600" step="1" @bind="CustomPingInterval" />
+                }
+
+                <span> @(PingIntervalSeconds == "custom" ? $"{CustomPingInterval} sekundy" : $"{PingIntervalSeconds} sekundy") </span>
+
                 <br />
             </div>
         </div>
@@ -138,6 +155,7 @@
     private List<Category> CategoryList = new();
     private int? SelectedGroupId { get; set; }
     private int? SelectedCategoryId { get; set; }
+
     private CancellationTokenSource? PingCancellationTokenSource = null;
 
     private string CurrentSortColumn = "Name";
@@ -145,7 +163,15 @@
     private IEnumerable<Device> SortedDevices => SortDevices(Devices, CurrentSortColumn, SortAscending);
 
     private bool IsAutoPingEnabled = false;
-    private int PingIntervalSeconds = 60;
+
+
+
+   
+    private int CustomPingInterval = 60; 
+    private string PingIntervalSeconds = "60"; // Domyślna wartość
+
+
+
 
     private void SortTable(string column)
     {
@@ -158,6 +184,8 @@
         }
         StateHasChanged();
     }
+
+
 
     private IEnumerable<Device> SortDevices(IEnumerable<Device> devices, string column, bool ascending)
     {
@@ -272,7 +300,10 @@
             while (!cancellationToken.IsCancellationRequested)
             {
                 await PingDevices();
-                await Task.Delay(PingIntervalSeconds * 1000, cancellationToken);
+
+                int interval = PingIntervalSeconds == "custom" ? CustomPingInterval : int.Parse(PingIntervalSeconds);
+
+                await Task.Delay(interval * 1000, cancellationToken);
             }
         }
         else
@@ -300,6 +331,7 @@
 
                     try
                     {
+                        // Wykonanie pingowania
                         var result = await PingRepository.PingDeviceAsync(device.IPAddress);
 
                         lock (PingResults)
@@ -312,6 +344,9 @@
                             bool isOnline = result.Contains("Success");
                             UpdateDevicePingState(device.Id, isOnline);
                         }
+
+                        // Wywołanie zapisu do historii pingów przy użyciu istniejącej metody repozytorium
+                        await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
                     }
                     catch (Exception ex)
                     {
@@ -319,6 +354,9 @@
                         {
                             PingResults[device.Id] = $"Błąd: {ex.Message}";
                         }
+
+                        // Zapisanie błędnego pingowania
+                        await PingRepository.SavePingResultAsync(device.IPAddress, device.Id);
                     }
                     finally
                     {
@@ -343,6 +381,8 @@
             await InvokeAsync(StateHasChanged);
         }
     }
+
+
 
     private void CancelPing()
     {

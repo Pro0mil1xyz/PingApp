@@ -16,21 +16,25 @@
     
     <div class="IPmanualnie">
         <!-- Pingowanie pojedynczego adresu IP -->
-        IP: <input type="text" placeholder="Podaj adres IP" @bind="SingleIpAddress" />
-        <button @onclick="PingSingleIp">Pinguj 
-                
-                <img src="https://cdn3.emoji.gg/emojis/91716-chechbw.gif" width="16px" height="16px" alt="chechbw">
-            
-        </button> <br />
+        IP:
+        <input type="text" placeholder="Podaj adres IP" @bind="SingleIpAddress" oninput="this.value = this.value.replace(/[^0-9.]/g, '')" />
+        <button @onclick="PingSingleIp">
+            Pinguj
+            <img src="https://cdn3.emoji.gg/emojis/91716-chechbw.gif" width="16px" height="16px" alt="chechbw">
+        </button>
+        <br />
+
+
         <!-- Pingowanie zakresu IP -->
-        Zakres IP 
-        <input type="text" placeholder="Początek zakresu" @bind="StartIpRange" />
-        <input type="text" placeholder="Koniec zakresu" @bind="EndIpRange" />
-        <button @onclick="PingIpRange">Pinguj zakres 
-            
-                <img src="https://cdn3.emoji.gg/emojis/91716-chechbw.gif" width="16px" height="16px" alt="chechbw">
-       
-        </button> <br />
+        <!-- Pingowanie zakresu IP -->
+        Zakres IP
+        <input type="text" placeholder="Początek zakresu" @bind="StartIpRange" oninput="this.value = this.value.replace(/[^0-9.]/g, '')" />
+        <input type="text" placeholder="Koniec zakresu" @bind="EndIpRange" oninput="this.value = this.value.replace(/[^0-9.]/g, '')" />
+        <button @onclick="PingIpRange">
+            Pinguj zakres
+            <img src="https://cdn3.emoji.gg/emojis/91716-chechbw.gif" width="16px" height="16px" alt="chechbw">
+        </button>
+        <br />
 
         <!-- Ogólne opcje -->
         Dodatkowe opcje: <br />
