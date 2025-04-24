@@ -10,6 +10,11 @@
 
 <button @onclick="ShowAddDeviceForm">Dodaj urządzenie</button>
 
+@if (!string.IsNullOrEmpty(ValidationMessage))
+{
+    <div style="color: red; margin-top: 10px;">@ValidationMessage</div>
+}
+
 @if (DeviceList == null)
 {
     <p>Ładowanie urządzeń...</p>
@@ -20,46 +25,11 @@ else
         <table class="table table-striped table-bordered">
             <thead class="sticky-top" style="top: 0; z-index: 2;">
                 <tr>
-                    <th @onclick="@(() => SortTable("Id"))" style="cursor: pointer;">
-                        Id
-                        @if (CurrentSortColumn == "Id")
-                        {
-                            <span>@(SortAscending ? "↑" : "↓")</span>
-                        }
-                    </th>
-
-                    <th @onclick="@(() => SortTable("Name"))" style="cursor: pointer;">
-                        Nazwa
-                        @if (CurrentSortColumn == "Name")
-                        {
-                            <span>@(SortAscending ? "↑" : "↓")</span>
-                        }
-                    </th>
-
-                    <th @onclick="@(() => SortTable("IPAddress"))" style="cursor: pointer;">
-                        Adres IP
-                        @if (CurrentSortColumn == "IPAddress")
-                        {
-                            <span>@(SortAscending ? "↑" : "↓")</span>
-                        }
-                    </th>
-
-                    <th @onclick="@(() => SortTable("Category"))" style="cursor: pointer;">
-                        Kategoria
-                        @if (CurrentSortColumn == "Category")
-                        {
-                            <span>@(SortAscending ? "↑" : "↓")</span>
-                        }
-                    </th>
-
-                    <th @onclick="@(() => SortTable("Group"))" style="cursor: pointer;">
-                        Grupa
-                        @if (CurrentSortColumn == "Group")
-                        {
-                            <span>@(SortAscending ? "↑" : "↓")</span>
-                        }
-                    </th>
-
+                    <th @onclick="@(() => SortTable("Id"))" style="cursor: pointer;">Id @(CurrentSortColumn == "Id" ? (SortAscending ? "↑" : "↓") : "")</th>
+                    <th @onclick="@(() => SortTable("Name"))" style="cursor: pointer;">Nazwa @(CurrentSortColumn == "Name" ? (SortAscending ? "↑" : "↓") : "")</th>
+                    <th @onclick="@(() => SortTable("IPAddress"))" style="cursor: pointer;">Adres IP @(CurrentSortColumn == "IPAddress" ? (SortAscending ? "↑" : "↓") : "")</th>
+                    <th @onclick="@(() => SortTable("Category"))" style="cursor: pointer;">Kategoria @(CurrentSortColumn == "Category" ? (SortAscending ? "↑" : "↓") : "")</th>
+                    <th @onclick="@(() => SortTable("Group"))" style="cursor: pointer;">Grupa @(CurrentSortColumn == "Group" ? (SortAscending ? "↑" : "↓") : "")</th>
                     <th>Akcje</th>
                 </tr>
             </thead>
@@ -109,9 +79,17 @@ else
 
             <label for="deviceName">Nazwa urządzenia:</label>
             <input type="text" id="deviceName" @bind="DeviceForm.Name" />
+            @if (ValidationErrors.ContainsKey("Name"))
+            {
+                <div style="color: red;">@ValidationErrors["Name"]</div>
+            }
 
             <label for="deviceIP">Adres IP:</label>
-            <input type="text" id="deviceIP" @bind="DeviceForm.IPAddress" />
+            <input type="text" id="deviceIP" @bind="DeviceForm.IPAddress" oninput="this.value = this.value.replace(/[^0-9.]/g, '')" />
+            @if (ValidationErrors.ContainsKey("IPAddress"))
+            {
+                <div style="color: red;">@ValidationErrors["IPAddress"]</div>
+            }
 
             <label for="categorySelect">Kategoria:</label>
             <select id="categorySelect" @bind="DeviceForm.CategoryId">
@@ -121,6 +99,10 @@ else
                     <option value="@category.Id">@category.CategoryName</option>
                 }
             </select>
+            @if (ValidationErrors.ContainsKey("Category"))
+            {
+                <div style="color: red;">@ValidationErrors["Category"]</div>
+            }
 
             <label for="groupSelect">Grupa:</label>
             <select id="groupSelect" @bind="DeviceForm.GroupId">
@@ -130,6 +112,10 @@ else
                     <option value="@group.Id">@group.GroupName</option>
                 }
             </select>
+            @if (ValidationErrors.ContainsKey("Group"))
+            {
+                <div style="color: red;">@ValidationErrors["Group"]</div>
+            }
 
             <br />
             <button @onclick="SaveDevice">Zapisz</button>
@@ -149,6 +135,8 @@ else
     private IEnumerable<DeviceGroup> DeviceGroups;
     private string CurrentSortColumn = "Id";
     private bool SortAscending = true;
+    private string? ValidationMessage;
+    private Dictionary<string, string> ValidationErrors = new Dictionary<string, string>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -164,12 +152,16 @@ else
     {
         IsEditing = false;
         DeviceForm = new Device();
+        ValidationMessage = null;
+        ValidationErrors.Clear();
         IsAddEditFormVisible = true;
     }
 
     private void EditDevice(Device device)
     {
         IsEditing = true;
+        ValidationMessage = null;
+        ValidationErrors.Clear();
         DeviceForm = new Device
             {
                 Id = device.Id,
@@ -183,6 +175,35 @@ else
 
     private async Task SaveDevice()
     {
+        ValidationMessage = null;
+        ValidationErrors.Clear();
+
+        // Validate fields
+        if (string.IsNullOrWhiteSpace(DeviceForm.Name))
+        {
+            ValidationErrors["Name"] = "Nazwa urządzenia jest wymagana.";
+        }
+
+        if (!IsValidIp(DeviceForm.IPAddress))
+        {
+            ValidationErrors["IPAddress"] = "Niepoprawny format adresu IP.";
+        }
+
+        bool isDuplicate = DeviceList.Any(d =>
+            d.IPAddress == DeviceForm.IPAddress &&
+            (!IsEditing || d.Id != DeviceForm.Id));
+
+        if (isDuplicate)
+        {
+            ValidationErrors["IPAddress"] = "Urządzenie z tym adresem IP już istnieje.";
+        }
+
+        if (ValidationErrors.Count > 0)
+        {
+            return;
+        }
+
+        // Save device if validation passed
         if (IsEditing)
         {
             await DeviceRepository.UpdateDeviceAsync(DeviceForm);
@@ -200,6 +221,8 @@ else
     private void CancelAddEdit()
     {
         IsAddEditFormVisible = false;
+        ValidationMessage = null;
+        ValidationErrors.Clear();
     }
 
     private async Task DeleteDevice(int id)
@@ -246,5 +269,11 @@ else
             "Group" => ascending ? devices.OrderBy(d => d.Group?.GroupName) : devices.OrderByDescending(d => d.Group?.GroupName),
             _ => devices
         };
+    }
+
+    private bool IsValidIp(string? ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip)) return false;
+        return System.Net.IPAddress.TryParse(ip, out _);
     }
 }

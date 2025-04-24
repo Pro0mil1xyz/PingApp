@@ -7,15 +7,13 @@
 @inject IPingRepository PingRepository
 
 <div class="IP">
-    
     <h1>
-        <img src="https://cdn3.emoji.gg/emojis/5394-pepe.png" width="32pxpx" height="32px" alt="_pepe">
+        <img src="https://cdn3.emoji.gg/emojis/5394-pepe.png" width="32px" height="32px" alt="_pepe">
         IP PINGER
         <img src="https://cdn3.emoji.gg/emojis/5394-pepe.png" width="32px" height="32px" alt="_pepe">
     </h1>
-    
+
     <div class="IPmanualnie">
-        <!-- Pingowanie pojedynczego adresu IP -->
         IP:
         <input type="text" placeholder="Podaj adres IP" @bind="SingleIpAddress" oninput="this.value = this.value.replace(/[^0-9.]/g, '')" />
         <button @onclick="PingSingleIp">
@@ -24,9 +22,6 @@
         </button>
         <br />
 
-
-        <!-- Pingowanie zakresu IP -->
-        <!-- Pingowanie zakresu IP -->
         Zakres IP
         <input type="text" placeholder="Początek zakresu" @bind="StartIpRange" oninput="this.value = this.value.replace(/[^0-9.]/g, '')" />
         <input type="text" placeholder="Koniec zakresu" @bind="EndIpRange" oninput="this.value = this.value.replace(/[^0-9.]/g, '')" />
@@ -36,7 +31,6 @@
         </button>
         <br />
 
-        <!-- Ogólne opcje -->
         Dodatkowe opcje: <br />
         <button class="btn btn-danger" @onclick="CancelPing">STOP PING</button>
     </div>
@@ -71,9 +65,6 @@
     private string SingleIpAddress = string.Empty;
     private string StartIpRange = string.Empty;
     private string EndIpRange = string.Empty;
-    private int SelectedGroupId = 0;
-    private int SelectedCategoryId = 0;
-    private int SelectedDeviceId = 0;
     private bool IsPingInProgress = false;
     private bool WasPingCancelled = false;
 
@@ -93,21 +84,43 @@
 
     private void CancelPing()
     {
-        if (PingCancellationTokenSource != null)
-        {
-            PingCancellationTokenSource.Cancel();
-            PingCancellationTokenSource.Dispose();
-            PingCancellationTokenSource = null;
-        }
-
+        PingCancellationTokenSource?.Cancel();
+        PingCancellationTokenSource?.Dispose();
+        PingCancellationTokenSource = null;
         IsPingInProgress = false;
         WasPingCancelled = true;
         StateHasChanged();
     }
 
+    private bool IsValidIp(string ip)
+    {
+        return System.Net.IPAddress.TryParse(ip, out _);
+    }
+
+    private bool IsValidIpRange(string startIp, string endIp)
+    {
+        var startParts = startIp.Split('.').Select(int.Parse).ToArray();
+        var endParts = endIp.Split('.').Select(int.Parse).ToArray();
+
+        // Check if the first three octets match (for valid subnet).
+        if (!startParts.Take(3).SequenceEqual(endParts.Take(3))) return false;
+
+        // Check if the last octet of start is less than or equal to the last octet of end.
+        if (startParts[3] > endParts[3]) return false;
+
+        return true;
+    }
 
     private async Task PingSingleIp()
     {
+        PingResults.Clear();
+
+        if (!IsValidIp(SingleIpAddress))
+        {
+            PingResults.Add((MarkupString)"<span style='color:red;'>Nieprawidłowy adres IP.</span>");
+            return;
+        }
+
         IsPingInProgress = true;
         WasPingCancelled = false;
         StateHasChanged();
@@ -115,7 +128,6 @@
         PingCancellationTokenSource = new CancellationTokenSource();
         var cancellationToken = PingCancellationTokenSource.Token;
 
-        PingResults.Clear();
         int packetsSent = 4;
         int packetsReceived = 0;
 
@@ -165,7 +177,6 @@
             PingResults.Add((MarkupString)"<br>");
             PingResults.Add((MarkupString)"Ping statistics:");
             PingResults.Add((MarkupString)$"    Packets: Sent = {packetsSent}, <span style='color:lightgreen;'> Received = {packetsReceived}</span>, <span style='color:red;'> Lost = {packetsSent - packetsReceived}</span> ({(packetsSent - packetsReceived) * 100 / packetsSent}% loss)");
-            StateHasChanged();
 
             var allDevices = await DeviceRepository.GetAllDevicesAsync();
             var existingDevice = allDevices.FirstOrDefault(d => d.IPAddress == SingleIpAddress);
@@ -180,7 +191,6 @@
         {
             IsPingInProgress = false;
             StateHasChanged();
-
             PingCancellationTokenSource?.Dispose();
             PingCancellationTokenSource = null;
         }
@@ -188,6 +198,20 @@
 
     private async Task PingIpRange()
     {
+        PingResults.Clear();
+
+        if (!IsValidIp(StartIpRange) || !IsValidIp(EndIpRange))
+        {
+            PingResults.Add((MarkupString)"<span style='color:red;'>Nieprawidłowy początek lub koniec zakresu IP.</span>");
+            return;
+        }
+
+        if (!IsValidIpRange(StartIpRange, EndIpRange))
+        {
+            PingResults.Add((MarkupString)"<span style='color:red;'>Zakres IP jest nieprawidłowy.</span>");
+            return;
+        }
+
         IsPingInProgress = true;
         WasPingCancelled = false;
         StateHasChanged();
@@ -195,17 +219,8 @@
         PingCancellationTokenSource = new CancellationTokenSource();
         var cancellationToken = PingCancellationTokenSource.Token;
 
-        PingResults.Clear();
         int packetsSent = 0;
         int packetsReceived = 0;
-
-        if (string.IsNullOrWhiteSpace(StartIpRange) || string.IsNullOrWhiteSpace(EndIpRange))
-        {
-            PingResults.Add((MarkupString)"<span style='color:red;'>Zakres adresów IP nie może być pusty.</span>");
-            IsPingInProgress = false;
-            StateHasChanged();
-            return;
-        }
 
         try
         {
@@ -213,15 +228,10 @@
             var endParts = EndIpRange.Split('.').Select(int.Parse).ToArray();
             var allDevices = await DeviceRepository.GetAllDevicesAsync();
             var deviceDictionary = allDevices.ToDictionary(d => d.IPAddress, d => d.Id);
-            
+
             for (int i = startParts[3]; i <= endParts[3]; i++)
             {
-
-                PingResults.Clear();
-
-                cancellationToken.ThrowIfCancellationRequested();
                 var ip = $"{startParts[0]}.{startParts[1]}.{startParts[2]}.{i}";
-
                 PingResults.Add((MarkupString)$"Pinging {ip} with 32 bytes of data:");
                 StateHasChanged();
 
@@ -263,7 +273,6 @@
                 }
 
                 packetsSent += 4;
-
                 await PingRepository.SavePingResultAsync(ip, deviceDictionary.TryGetValue(ip, out var id) ? id : -1);
                 await Task.Delay(1000, cancellationToken);
             }
@@ -278,8 +287,6 @@
         }
         finally
         {
-            PingResults.Clear();
-
             if (!WasPingCancelled)
             {
                 PingResults.Add((MarkupString)"<br>");
@@ -290,7 +297,6 @@
 
             IsPingInProgress = false;
             StateHasChanged();
-
             PingCancellationTokenSource?.Dispose();
             PingCancellationTokenSource = null;
         }
